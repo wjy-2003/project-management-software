@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Git Graph Visualization</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .controls select, .controls button {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            background: #34495e;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .controls select:hover, .controls button:hover {
+            background: #4a5f7f;
+        }
+
+        #graph-container {
+            position: relative;
+            overflow: auto;
+            height: 80vh;
+            background: #fafafa;
+        }
+
+        svg {
+            display: block;
+            margin: 0 auto;
+        }
+
+        .branch-line {
+            fill: none;
+            stroke-width: 2;
+        }
+
+        .commit-edge {
+            fill: none;
+            stroke-width: 2;
+            opacity: 0.8;
+        }
+
+        .commit-edge.merge {
+            stroke-width: 2.5;
+            opacity: 0.9;
+        }
+
+        .commit-node {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .commit-node:hover {
+            filter: brightness(1.2);
+        }
+
+        .commit-node.normal {
+            stroke-width: 2;
+        }
+
+        .commit-node.merge {
+            stroke-width: 3;
+            stroke: #2c3e50;
+        }
+
+        .commit-label {
+            font-size: 12px;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        .leader-line {
+            stroke: #bdc3c7;
+            stroke-width: 1;
+            stroke-dasharray: 2,2;
+            fill: none;
+        }
+
+        .commit-text-area {
+            background: white;
+            padding: 4px 8px;
+            border: 1px solid #ecf0f1;
+            border-radius: 3px;
+        }
+
+        .commit-message {
+            font-size: 13px;
+            fill: #2c3e50;
+            font-weight: normal !important;
+        }
+
+        .commit-message.merge {
+            font-weight: normal !important;
+        }
+
+        .commit-sha {
+            font-size: 11px;
+            fill: #7f8c8d;
+        }
+
+        .commit-author {
+            font-size: 11px;
+            fill: #95a5a6;
+        }
+
+        .tooltip {
+            position: absolute;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 1000;
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+            font-size: 18px;
+            color: #7f8c8d;
+        }
+
+        .error {
+            color: #e74c3c;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .stats {
+            padding: 15px 20px;
+            background: #ecf0f1;
+            border-top: 1px solid #bdc3c7;
+            display: flex;
+            gap: 20px;
+            font-size: 14px;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .stat-label {
+            color: #7f8c8d;
+        }
+
+        .stat-value {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .branch-legend {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .branch-legend h3 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            color: #2c3e50;
+        }
+
+        .branch-legend-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+            font-size: 12px;
+        }
+
+        .branch-color-box {
+            width: 20px;
+            height: 3px;
+            margin-right: 8px;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Git Graph Visualization</h1>
+            <div class="controls">
+                <label for="max-commits" style="color: white;">Commits:</label>
+                <select id="max-commits">
+                    <option value="50">50</option>
+                    <option value="100" selected>100</option>
+                    <option value="200">200</option>
+                    <option value="500">500</option>
+                </select>
+                <button onclick="loadGraph()">Refresh</button>
+                <button onclick="zoomIn()">Zoom In</button>
+                <button onclick="zoomOut()">Zoom Out</button>
+                <button onclick="resetZoom()">Reset</button>
+            </div>
+        </div>
+
+        <div id="graph-container">
+            <div class="loading" id="loading">Loading git history...</div>
+            <div class="branch-legend" id="branch-legend" style="display: none;">
+                <h3>Branches</h3>
+                <div id="branch-list"></div>
+            </div>
+        </div>
+
+        <div class="stats">
+            <div class="stat-item">
+                <span class="stat-label">Total Commits:</span>
+                <span class="stat-value" id="total-commits">-</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Branches:</span>
+                <span class="stat-value" id="total-branches">-</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Current:</span>
+                <span class="stat-value" id="current-branch">-</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="tooltip" id="tooltip"></div>
+
+    <script>
+        let currentData = null;
+        let svg = null;
+        let g = null;
+        let zoom = null;
+
+        function loadGraph() {
+            const maxCommits = document.getElementById('max-commits').value;
+            const loading = document.getElementById('loading');
+            const container = document.getElementById('graph-container');
+
+            // Show loading
+            loading.style.display = 'flex';
+
+            // Clear previous graph
+            d3.select('#graph-container svg').remove();
+
+            fetch(`/git/commits/api/?max_commits=${maxCommits}`)
+                .then(response => response.json())
+                .then(data => {
+                    loading.style.display = 'none';
+                    currentData = data;
+
+                    if (data.error) {
+                        container.innerHTML = `<div class="error">Error: ${data.error}</div>`;
+                        return;
+                    }
+
+                    updateStats(data);
+                    renderGraph(data);
+                })
+                .catch(error => {
+                    loading.style.display = 'none';
+                    container.innerHTML = `<div class="error">Failed to load git data: ${error.message}</div>`;
+                    console.error('Error loading git data:', error);
+                });
+        }
+
+        function updateStats(data) {
+            document.getElementById('total-commits').textContent = data.total_commits || 0;
+            document.getElementById('total-branches').textContent = data.branches ? data.branches.length : 0;
+            document.getElementById('current-branch').textContent = 'main'; // Hardcoded for now
+
+            // Update branch legend
+            updateBranchLegend(data.branches || []);
+        }
+
+        function updateBranchLegend(branches) {
+            const legendContainer = document.getElementById('branch-legend');
+            const branchList = document.getElementById('branch-list');
+
+            if (branches.length === 0) {
+                legendContainer.style.display = 'none';
+                return;
+            }
+
+            legendContainer.style.display = 'block';
+            branchList.innerHTML = '';
+
+            // Create a map to store unique branch names with their colors
+            const branchMap = new Map();
+
+            // First, collect all unique branches with their colors from the actual vertices
+            if (currentData && currentData.vertices) {
+                currentData.vertices.forEach(vertex => {
+                    if (vertex.branch && vertex.color) {
+                        branchMap.set(vertex.branch, vertex.color);
+                    }
+                });
+            }
+
+            // Then, add any branches from the branches array that might not be in vertices
+            branches.forEach(branch => {
+                const branchName = branch.name.replace('branch_', '');
+                if (!branchMap.has(branchName)) {
+                    branchMap.set(branchName, branch.color);
+                }
+            });
+
+            // Sort branches by their x position for consistent ordering
+            const sortedBranches = Array.from(branchMap.entries()).sort((a, b) => {
+                // Find the x position for each branch from the branches data
+                const branchA = branches.find(b => b.name.replace('branch_', '') === a[0]);
+                const branchB = branches.find(b => b.name.replace('branch_', '') === b[0]);
+                return (branchA ? branchA.x : 0) - (branchB ? branchB.x : 0);
+            });
+
+            sortedBranches.forEach(([branchName, color]) => {
+                const item = document.createElement('div');
+                item.className = 'branch-legend-item';
+
+                const colorBox = document.createElement('div');
+                colorBox.className = 'branch-color-box';
+                colorBox.style.backgroundColor = color;
+
+                const label = document.createElement('span');
+                label.textContent = branchName;
+
+                item.appendChild(colorBox);
+                item.appendChild(label);
+                branchList.appendChild(item);
+            });
+        }
+
+        function renderGraph(data) {
+            if (!data.vertices || data.vertices.length === 0) {
+                document.getElementById('graph-container').innerHTML =
+                    '<div class="error">No commits found in this repository.</div>';
+                return;
+            }
+
+            const container = document.getElementById('graph-container');
+            const graphWidth = Math.max(400, data.branches.length * 80 + 100);
+            const textAreaWidth = 600;
+            const width = graphWidth + textAreaWidth;
+            const height = data.vertices.length * 60 + 100;
+
+            // Create SVG
+            svg = d3.select('#graph-container')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height);
+
+            // Create zoom behavior
+            zoom = d3.zoom()
+                .scaleExtent([0.1, 3])
+                .on('zoom', (event) => {
+                    g.attr('transform', event.transform);
+                });
+
+            svg.call(zoom);
+
+            // Create main group
+            g = svg.append('g')
+                .attr('transform', 'translate(50, 30)');
+
+            // Create branch lines
+            const branchLines = g.selectAll('.branch-line')
+                .data(data.branches)
+                .enter()
+                .append('line')
+                .attr('class', 'branch-line')
+                .attr('x1', d => d.x)
+                .attr('y1', 0)
+                .attr('x2', d => d.x)
+                .attr('y2', height)
+                .attr('stroke', d => d.color)
+                .attr('stroke-opacity', 0.3);
+
+            // Create edges (connections between commits)
+            const edges = [];
+            data.vertices.forEach(vertex => {
+                vertex.parents.forEach(parentId => {
+                    const parent = data.vertices.find(v => v.id === parentId);
+                    if (parent) {
+                        edges.push({
+                            source: parent,
+                            target: vertex
+                        });
+                    }
+                });
+            });
+
+            // Draw edges
+            g.selectAll('.commit-edge')
+                .data(edges)
+                .enter()
+                .append('path')
+                .attr('class', d => `commit-edge ${d.target.is_merge ? 'merge' : ''}`)
+                .attr('stroke', d => {
+                    // Use the source commit's branch color for the edge (start branch)
+                    return d.source.color || '#95a5a6';
+                })
+                .attr('d', d => {
+                    // Create improved paths for better visualization
+                    const sourceY = d.source.y;
+                    const targetY = d.target.y;
+                    const midY = (sourceY + targetY) / 2;
+                    const offsetX = 20; // Offset for curved paths to avoid intersections
+
+                    if (Math.abs(d.source.x - d.target.x) < 10) {
+                        // Straight line for same branch
+                        return `M ${d.source.x} ${sourceY} L ${d.target.x} ${targetY}`;
+                    } else if (d.target.is_merge && d.target.parents.length > 1) {
+                        // For merge commits, create a more pronounced curve to avoid intersections
+                        const controlOffset = offsetX * 2;
+                        return `M ${d.source.x} ${sourceY}
+                                C ${d.source.x + controlOffset} ${midY},
+                                  ${d.target.x + controlOffset} ${midY},
+                                  ${d.target.x} ${targetY}`;
+                    } else {
+                        // Standard curved line for branch changes
+                        return `M ${d.source.x} ${sourceY}
+                                C ${d.source.x + offsetX} ${midY},
+                                  ${d.target.x + offsetX} ${midY},
+                                  ${d.target.x} ${targetY}`;
+                    }
+                });
+
+            // Create commit nodes
+            const nodes = g.selectAll('.commit-node')
+                .data(data.vertices)
+                .enter()
+                .append('g')
+                .attr('class', d => `commit-node ${d.is_merge ? 'merge' : 'normal'}`)
+                .attr('transform', d => `translate(${d.x}, ${d.y})`)
+                .on('mouseenter', showTooltip)
+                .on('mouseleave', hideTooltip)
+                .on('click', handleNodeClick);
+
+            // Draw commit circles
+            nodes.append('circle')
+                .attr('r', d => d.is_merge ? 8 : 6)
+                .attr('fill', d => d.color || '#95a5a6')
+                .attr('stroke', '#fff')
+                .attr('stroke-width', 2);
+
+            // Add merge indicators
+            nodes.filter(d => d.is_merge)
+                .append('rect')
+                .attr('x', -10)
+                .attr('y', -10)
+                .attr('width', 20)
+                .attr('height', 20)
+                .attr('fill', 'none')
+                .attr('stroke', '#2c3e50')
+                .attr('stroke-width', 2)
+                .attr('rx', 2);
+
+            // Add leader lines and text on the right side
+            nodes.each(function(d) {
+                const node = d3.select(this);
+                const textStartX = graphWidth + 20;
+                const textStartX2 = graphWidth + 25;
+
+                // Leader line from node to text area
+                node.append('line')
+                    .attr('class', 'leader-line')
+                    .attr('x1', 8)  // Start from edge of circle
+                    .attr('y1', 0)
+                    .attr('x2', textStartX - d.x)  // End at text area
+                    .attr('y2', 0);
+
+                // Commit SHA
+                node.append('text')
+                    .attr('class', 'commit-label commit-sha')
+                    .attr('dx', textStartX - d.x)
+                    .attr('dy', -5)
+                    .style('font-weight', 'bold')
+                    .text(d.sha);
+
+                // Commit message
+                node.append('text')
+                    .attr('class', d => `commit-label commit-message ${d.is_merge ? 'merge' : ''}`)
+                    .attr('dx', textStartX2 - d.x)
+                    .attr('dy', 10)
+                    .text(d => d.message.length > 80 ? d.message.substring(0, 80) + '...' : d.message);
+
+                // Author info
+                node.append('text')
+                    .attr('class', 'commit-label commit-author')
+                    .attr('dx', textStartX2 - d.x)
+                    .attr('dy', 25)
+                    .text(d => `${d.author} • ${formatDate(d.date)}`);
+            });
+
+            // Initial zoom to fit
+            resetZoom();
+        }
+
+        function showTooltip(event, d) {
+            const tooltip = document.getElementById('tooltip');
+            const date = new Date(d.date * 1000);
+
+            tooltip.innerHTML = `
+                <strong>${d.sha}</strong><br>
+                <strong>Message:</strong> ${d.message}<br>
+                <strong>Author:</strong> ${d.author}<br>
+                <strong>Date:</strong> ${date.toLocaleString()}<br>
+                <strong>Branch:</strong> ${d.branch || 'unknown'}<br>
+                <strong>Type:</strong> ${d.is_merge ? 'Merge Commit' : 'Normal Commit'}
+            `;
+
+            tooltip.style.left = event.pageX + 10 + 'px';
+            tooltip.style.top = event.pageY - 10 + 'px';
+            tooltip.style.opacity = 1;
+        }
+
+        function hideTooltip() {
+            document.getElementById('tooltip').style.opacity = 0;
+        }
+
+        function handleNodeClick(event, d) {
+            console.log('Clicked commit:', d);
+            // TODO: Add more detailed commit view or actions
+        }
+
+        function formatDate(timestamp) {
+            const date = new Date(timestamp * 1000);
+            return date.toLocaleDateString();
+        }
+
+        function zoomIn() {
+            if (svg && zoom) {
+                svg.transition().call(zoom.scaleBy, 1.5);
+            }
+        }
+
+        function zoomOut() {
+            if (svg && zoom) {
+                svg.transition().call(zoom.scaleBy, 1 / 1.5);
+            }
+        }
+
+        function resetZoom() {
+            if (svg && zoom && currentData) {
+                const container = document.getElementById('graph-container');
+                const containerWidth = container.clientWidth;
+                const containerHeight = container.clientHeight;
+
+                const graphWidth = Math.max(400, currentData.branches.length * 80 + 100);
+                const textAreaWidth = 600;
+                const graphHeight = currentData.vertices.length * 60 + 100;
+
+                const scale = Math.min(
+                    containerWidth / (graphWidth + textAreaWidth),
+                    containerHeight / graphHeight,
+                    1
+                );
+
+                const translateX = (containerWidth - graphWidth * scale) / 2;
+                const translateY = 30;
+
+                svg.transition()
+                    .duration(750)
+                    .call(zoom.transform, d3.zoomIdentity
+                        .translate(translateX, translateY)
+                        .scale(scale));
+            }
+        }
+
+        // Load graph on page load
+        document.addEventListener('DOMContentLoaded', loadGraph);
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (currentData) {
+                resetZoom();
+            }
+        });
+    </script>
+</body>
+</html>
