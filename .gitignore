@@ -5,6 +5,8 @@ webapp/__pycache__/
 *.pyo
 *.pyd
 
+/pmsvenv
+
 # VSCode
 .vscode/
 
