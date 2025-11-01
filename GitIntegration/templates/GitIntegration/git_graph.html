@@ -123,13 +123,7 @@
         }
 
         .commit-message {
-            font-size: 13px;
-            fill: #2c3e50;
-            font-weight: normal !important;
-        }
-
-        .commit-message.merge {
-            font-weight: normal !important;
+            /* Styles are now set directly in JavaScript to avoid SVG rendering issues */
         }
 
         .commit-sha {
@@ -515,26 +509,90 @@
                     .attr('y2', 0);
 
                 // Commit SHA
-                node.append('text')
+                const shaText = node.append('text')
                     .attr('class', 'commit-label commit-sha')
                     .attr('dx', textStartX - d.x)
-                    .attr('dy', -5)
-                    .style('font-weight', 'bold')
-                    .text(d.sha);
+                    .attr('dy', -5);
+
+                // Apply styles for SHA
+                if (d.is_merge) {
+                    shaText
+                        .style('font-weight', '600')
+                        .style('font-family', 'Arial, Helvetica, sans-serif')
+                        .style('fill', '#666666')
+                        .style('font-size', '11px')
+                        .style('text-rendering', 'optimizeSpeed')
+                        .style('stroke', 'none');
+                } else {
+                    shaText
+                        .style('font-weight', 'bold')
+                        .style('font-family', "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif")
+                        .style('fill', '#7f8c8d')
+                        .style('font-size', '11px')
+                        .style('text-rendering', 'geometricPrecision')
+                        .style('stroke', 'none');
+                }
+
+                shaText.text(d.sha);
 
                 // Commit message
-                node.append('text')
+                const messageText = node.append('text')
                     .attr('class', d => `commit-label commit-message ${d.is_merge ? 'merge' : ''}`)
                     .attr('dx', textStartX2 - d.x)
-                    .attr('dy', 10)
-                    .text(d => d.message.length > 80 ? d.message.substring(0, 80) + '...' : d.message);
+                    .attr('dy', 10);
+
+                // Apply different styles for merge commits
+                if (d.is_merge) {
+                    // Use lighter font weight and different font for merge commits
+                    messageText
+                        .style('font-weight', 'lighter')  // Use 'lighter' instead of numeric value
+                        .style('font-family', 'Arial, Helvetica, sans-serif')  // Simpler font stack
+                        .style('fill', '#444444')  // Darker gray for better contrast
+                        .style('font-size', '12px')
+                        .style('text-rendering', 'optimizeSpeed')  // Use optimizeSpeed for SVG
+                        .style('shape-rendering', 'crispEdges')
+                        .style('stroke', 'none')  // Remove any stroke
+                        .style('stroke-width', '0');
+                } else {
+                    // Regular commits
+                    messageText
+                        .style('font-weight', 'normal')  // Use 'normal' keyword
+                        .style('font-family', "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif")
+                        .style('fill', '#2c3e50')
+                        .style('font-size', '13px')
+                        .style('text-rendering', 'geometricPrecision')
+                        .style('stroke', 'none')
+                        .style('stroke-width', '0');
+                }
+
+                messageText.text(d.message.length > 80 ? d.message.substring(0, 80) + '...' : d.message);
 
                 // Author info
-                node.append('text')
+                const authorText = node.append('text')
                     .attr('class', 'commit-label commit-author')
                     .attr('dx', textStartX2 - d.x)
-                    .attr('dy', 25)
-                    .text(d => `${d.author} • ${formatDate(d.date)}`);
+                    .attr('dy', 25);
+
+                // Apply styles for author info
+                if (d.is_merge) {
+                    authorText
+                        .style('font-weight', 'normal')
+                        .style('font-family', 'Arial, Helvetica, sans-serif')
+                        .style('fill', '#777777')
+                        .style('font-size', '10px')
+                        .style('text-rendering', 'optimizeSpeed')
+                        .style('stroke', 'none');
+                } else {
+                    authorText
+                        .style('font-weight', 'normal')
+                        .style('font-family', "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif")
+                        .style('fill', '#95a5a6')
+                        .style('font-size', '11px')
+                        .style('text-rendering', 'geometricPrecision')
+                        .style('stroke', 'none');
+                }
+
+                authorText.text(`${d.author} • ${formatDate(d.date)}`);
             });
 
             // Initial zoom to fit
