@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+
+{% block title %}编辑项目 - {{ project.title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1>编辑项目</h1>
+                <a href="{% url 'projectmanagement:project_info' project.project_number %}"
+                   class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> 返回项目
+                </a>
+            </div>
+
+            <form method="post">
+                {% csrf_token %}
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">基本信息</h5>
+                    </div>
+                    <div class="card-body">
+                        {% for field in form %}
+                            {% if field.name in 'project_number,title,description,status' %}
+                            <div class="mb-3">
+                                <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                                {{ field }}
+                                {% if field.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ field.errors }}
+                                    </div>
+                                {% endif %}
+                                {% if field.help_text %}
+                                    <div class="form-text">{{ field.help_text }}</div>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">时间安排</h5>
+                    </div>
+                    <div class="card-body">
+                        {% for field in form %}
+                            {% if field.name in 'planned_start_date,planned_end_date,actual_start_date,actual_end_date' %}
+                            <div class="mb-3">
+                                <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                                {{ field }}
+                                {% if field.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ field.errors }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">工时信息</h5>
+                    </div>
+                    <div class="card-body">
+                        {% for field in form %}
+                            {% if field.name in 'estimated_hours,consumed_hours,remaining_hours,available_workdays,available_hours' %}
+                            <div class="mb-3">
+                                <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                                {{ field }}
+                                {% if field.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ field.errors }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">团队与文档</h5>
+                    </div>
+                    <div class="card-body">
+                        {% for field in form %}
+                            {% if field.name in 'team_members,documents' %}
+                            <div class="mb-3">
+                                <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                                {{ field }}
+                                {% if field.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ field.errors }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="text-center mt-4">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> 保存更改
+                    </button>
+                    <a href="{% url 'projectmanagement:project_info' project.project_number %}"
+                       class="btn btn-secondary ms-2">
+                        取消
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* 美化表单控件 */
+    .form-control {
+        margin-bottom: 0.5rem;
+    }
+
+    /* 美化多选框 */
+    select[multiple] {
+        height: 150px !important;
+    }
+
+    /* 自定义卡片样式 */
+    .card {
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+
+    .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+    }
+</style>
+{% endblock %}
