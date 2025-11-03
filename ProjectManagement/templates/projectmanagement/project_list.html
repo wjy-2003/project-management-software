@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+
+{% block title %}项目列表{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>项目列表</h1>
+        <a href="{% url 'projectmanagement:project_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> 新建项目
+        </a>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead class="thead-light">
+                <tr>
+                    <th>项目名称</th>
+                    <th>状态</th>
+                    <th>进度</th>
+                    <th>实际开始时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for project in projects %}
+                <tr>
+                    <td>{{ project.title }}</td>
+                    <td>{{ project.get_status_display }}</td>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="progress flex-grow-1">
+                                <div class="progress-bar" role="progressbar"
+                                     style="width: {{ project.get_project_progress }}%"
+                                     aria-valuenow="{{ project.get_project_progress }}"
+                                     aria-valuemin="0"
+                                     aria-valuemax="100">
+                                </div>
+                            </div>
+                            <div class="text-nowrap">
+                                {{ project.get_project_progress|floatformat:1 }}%
+                            </div>
+                        </div>
+                    </td>
+                    <td>{{ project.actual_start_date|default:'未开始' }}</td>
+                    <td>
+                        <div class="d-flex gap-2">
+                            <a href="{% url 'projectmanagement:project_info' project.project_number %}"
+                               class="btn btn-sm btn-primary"
+                               target="_blank">
+                                查看详情
+                            </a>
+                            {% if project.status == 'in_progress' %}
+                            <a href="{% url 'projectmanagement:project_pause' project.project_number %}"
+                               class="btn btn-sm btn-warning"
+                               onclick="return confirm('确定要暂停该项目吗？')">
+                                暂停
+                            </a>
+                            {% endif %}
+                            {% if project.status == 'suspended' %}
+                            <a href="{% url 'projectmanagement:project_resume' project.project_number %}"
+                               class="btn btn-sm btn-success"
+                               onclick="return confirm('确定要继续该项目吗？')">
+                                继续
+                            </a>
+                            {% endif %}
+                            {% if project.status != 'cancelled' and project.status != 'completed' %}
+                            <a href="{% url 'projectmanagement:project_cancel' project.project_number %}"
+                               class="btn btn-sm btn-danger"
+                               onclick="return confirm('确定要取消该项目吗？')">
+                                取消
+                            </a>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
