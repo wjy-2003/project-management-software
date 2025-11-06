@@ -2,7 +2,14 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="2f3b639a-ea88-4f7a-ab12-90e0f301f4e3" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/RealtimeCollaboration/admin.py" beforeDir="false" afterPath="$PROJECT_DIR$/RealtimeCollaboration/admin.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/RealtimeCollaboration/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/RealtimeCollaboration/models.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/RealtimeCollaboration/tests.py" beforeDir="false" afterPath="$PROJECT_DIR$/RealtimeCollaboration/tests.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/RealtimeCollaboration/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/RealtimeCollaboration/views.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/webapp/asgi.py" beforeDir="false" afterPath="$PROJECT_DIR$/webapp/asgi.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/webapp/settings.py" beforeDir="false" afterPath="$PROJECT_DIR$/webapp/settings.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/webapp/urls.py" beforeDir="false" afterPath="$PROJECT_DIR$/webapp/urls.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -12,9 +19,9 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 1
-}]]></component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 1
+}</component>
   <component name="ProjectId" id="34jyC7cuEoYruuGOFXxVCLCiY76" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
@@ -25,7 +32,7 @@
     "ModuleVcsDetector.initialDetectionPerformed": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.git.unshallow": "true",
-    "git-widget-placeholder": "main",
+    "git-widget-placeholder": "cJs",
     "last_opened_file_path": "E:/hkCources/5351/project-management-software",
     "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable"
   }

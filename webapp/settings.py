@@ -26,21 +26,26 @@ SECRET_KEY = "django-insecure \
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["localhost", "0.0.0.0", "127.0.0.1"]
+ALLOWED_HOSTS = ["localhost", "0.0.0.0", "127.0.0.1", "*"]
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    "daphne",  # Channels ASGI server (必须在最前面)
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "channels",  # Django Channels
+    "corsheaders",  # cors
+    "RealtimeCollaboration",  # rc
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -49,6 +54,8 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
+CORS_ALLOW_ALL_ORIGINS = True
 
 ROOT_URLCONF = "webapp.urls"
 
@@ -68,6 +75,20 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "webapp.wsgi.application"
+ASGI_APPLICATION = "webapp.asgi.application"
+
+# Channels 配置
+CHANNEL_LAYERS = {
+    "default": {
+        # 使用内存通道层（开发环境）
+        "BACKEND": "channels.layers.InMemoryChannelLayer"
+        # 生产环境可以使用 Redis:
+        # "BACKEND": "channels_redis.core.RedisChannelLayer",
+        # "CONFIG": {
+        #     "hosts": [("127.0.0.1", 6379)],
+        # },
+    },
+}
 
 
 # Database
