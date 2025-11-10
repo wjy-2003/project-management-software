@@ -40,6 +40,56 @@
             display: flex;
             gap: 10px;
             align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .git-path-selector {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+
+        .git-path-input {
+            padding: 6px 10px;
+            border: 1px solid #34495e;
+            border-radius: 3px;
+            background: #2c3e50;
+            color: white;
+            font-size: 13px;
+            min-width: 300px;
+        }
+
+        .git-path-input:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .git-path-btn {
+            padding: 6px 12px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.2s;
+        }
+
+        .git-path-btn:hover {
+            background: #2980b9;
+        }
+
+        .current-git-path {
+            font-size: 11px;
+            color: #bdc3c7;
+            margin-left: 10px;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .controls select, .controls button {
@@ -231,6 +281,39 @@
             height: 3px;
             margin-right: 8px;
             border-radius: 2px;
+        }
+
+        .branch-create-item {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+            font-size: 12px;
+            padding: 5px;
+            border-top: 1px solid #ecf0f1;
+        }
+
+        .branch-create-input {
+            flex: 1;
+            padding: 4px 8px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            margin-right: 5px;
+            font-size: 12px;
+        }
+
+        .branch-create-btn {
+            padding: 4px 10px;
+            background: #2ecc71;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.2s;
+        }
+
+        .branch-create-btn:hover {
+            background: #27ae60;
         }
 
         /* Context Menu Styles */
@@ -428,7 +511,18 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Git Graph Visualization</h1>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <h1>Git Graph Visualization</h1>
+                <div class="git-path-selector">
+                    <span style="color: white; font-size: 13px;">Git Repository:</span>
+                    <input type="text" id="git-path-input" class="git-path-input" placeholder="Enter git repository path..." value="{{ current_git_path|default:'' }}">
+                    <button class="git-path-btn" onclick="setGitPath()">Set Path</button>
+                    <button class="git-path-btn" onclick="browseGitPath()">Browse</button>
+                    <span id="current-git-path-display" class="current-git-path" title="{{ current_git_path|default:'Default repository' }}">
+                        {{ current_git_path|default:'Default repository' }}
+                    </span>
+                </div>
+            </div>
             <div class="controls">
                 <label for="max-commits" style="color: white;">Commits:</label>
                 <select id="max-commits">
@@ -441,6 +535,7 @@
                 <button onclick="zoomIn()">Zoom In</button>
                 <button onclick="zoomOut()">Zoom Out</button>
                 <button onclick="resetZoom()">Reset</button>
+                <button onclick="window.location.href='/git/commit/'" style="background: #2ecc71;">Commit Changes</button>
             </div>
         </div>
 
@@ -449,6 +544,10 @@
             <div class="branch-legend" id="branch-legend" style="display: none;">
                 <h3>Branches</h3>
                 <div id="branch-list"></div>
+                <div class="branch-create-item">
+                    <input type="text" class="branch-create-input" id="new-branch-input" placeholder="New branch name..." />
+                    <button class="branch-create-btn" onclick="createBranch()">Create</button>
+                </div>
             </div>
         </div>
 
@@ -1015,6 +1114,53 @@
             }
         }
 
+        function createBranch() {
+            const input = document.getElementById('new-branch-input');
+            const branchName = input.value.trim();
+
+            if (!branchName) {
+                showToast('Branch name cannot be empty', 'error');
+                return;
+            }
+
+            fetch('/git/create-branch/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    branch_name: branchName,
+                    switch: true  // Create and switch to the new branch
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    input.value = '';  // Clear the input field
+                    loadGraph(); // Reload graph
+                } else {
+                    showToast(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showToast('Failed to create branch: ' + error.message, 'error');
+            });
+        }
+
+        // Handle Enter key in the branch input field
+        document.addEventListener('DOMContentLoaded', function() {
+            const branchInput = document.getElementById('new-branch-input');
+            if (branchInput) {
+                branchInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        createBranch();
+                    }
+                });
+            }
+        });
+
         function switchBranch(branchName) {
             fetch('/git/switch-branch/', {
                 method: 'POST',
@@ -1059,7 +1205,14 @@
                     showToast(data.message, 'success');
                     loadGraph(); // Reload graph
                 } else {
-                    showToast(data.message, 'error');
+                    if (data.has_conflicts && data.redirect_to) {
+                        showToast('Cherry-pick conflicts detected! Redirecting to conflict resolution...', 'warning');
+                        setTimeout(() => {
+                            window.location.href = data.redirect_to;
+                        }, 1500);
+                    } else {
+                        showToast(data.message, 'error');
+                    }
                     // Clear any selections after cherry-pick attempt
                     clearSelection();
                 }
@@ -1294,8 +1447,12 @@
                     loadGraph(); // Reload graph
                 } else {
                     if (data.has_conflicts) {
-                        showToast('Merge conflicts detected! Please resolve conflicts manually.', 'error');
-                        if (data.conflicted_files) {
+                        showToast('Merge conflicts detected! Redirecting to conflict resolution...', 'warning');
+                        if (data.redirect_to) {
+                            setTimeout(() => {
+                                window.location.href = data.redirect_to;
+                            }, 1500);
+                        } else if (data.conflicted_files) {
                             console.log('Conflicted files:', data.conflicted_files);
                         }
                     } else {
@@ -1416,8 +1573,105 @@
             return cookieValue;
         }
 
-        // Load graph on page load
-        document.addEventListener('DOMContentLoaded', loadGraph);
+        // Git path management functions
+        function setGitPath() {
+            const input = document.getElementById('git-path-input');
+            const gitPath = input.value.trim();
+
+            if (!gitPath) {
+                showToast('Please enter a git repository path', 'error');
+                return;
+            }
+
+            fetch('/git/set-path/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    git_path: gitPath
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    document.getElementById('current-git-path-display').textContent = gitPath;
+                    document.getElementById('current-git-path-display').title = gitPath;
+                    // Reload the graph with the new path
+                    loadGraph();
+                } else {
+                    showToast(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showToast('Failed to set git path: ' + error.message, 'error');
+            });
+        }
+
+        function browseGitPath() {
+            // Create a file input element for browsing
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.webkitdirectory = false; // We want to select a directory, not files
+            input.multiple = false;
+
+            // Note: Due to browser security restrictions, we can't directly browse directories
+            // Instead, we'll show a prompt with some common git locations
+            const commonPaths = [
+                'C:\\Users\\' + (navigator.userAgent.includes('Windows') ? 'Public' : '') + '\\Documents\\GitHub',
+                'D:\\Projects',
+                'E:\\Github',
+                '/home/user/projects',
+                '/Users/username/projects'
+            ];
+
+            const selectedPath = prompt(
+                'Enter the full path to your git repository:\n\nExamples:\n' +
+                commonPaths.join('\n') + '\n\\path\\to\\your\\repo',
+                document.getElementById('git-path-input').value
+            );
+
+            if (selectedPath) {
+                document.getElementById('git-path-input').value = selectedPath;
+                setGitPath();
+            }
+        }
+
+        function loadCurrentGitPath() {
+            fetch('/git/get-path/')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('git-path-input').value = data.git_path;
+                        document.getElementById('current-git-path-display').textContent = data.git_path;
+                        document.getElementById('current-git-path-display').title = data.git_path;
+                    }
+                })
+                .catch(error => {
+                    console.error('Failed to load current git path:', error);
+                });
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            // Handle Enter key in git path input
+            const gitPathInput = document.getElementById('git-path-input');
+            if (gitPathInput) {
+                gitPathInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        setGitPath();
+                    }
+                });
+            }
+
+            // Load current git path on page load
+            loadCurrentGitPath();
+
+            // Load graph on page load
+            loadGraph();
+        });
 
         // Handle window resize
         window.addEventListener('resize', () => {

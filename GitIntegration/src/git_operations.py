@@ -139,10 +139,13 @@ class GitOperations:
             except GitCommandError as e:
                 # Handle conflicts
                 if "CONFLICT" in str(e):
+                    conflicted_files = list(self.repo.index.unmerged_blobs().keys())
                     result = {
                         "success": False,
-                        "message": f"Cherry-pick conflicts detected for commit {commit_sha[:8]}. Please resolve conflicts manually.",
+                        "message": f"Cherry-pick conflicts detected for commit {commit_sha[:8]}. Redirecting to conflict resolution...",
                         "has_conflicts": True,
+                        "conflicted_files": conflicted_files,
+                        "redirect_to": "/git/conflicts/",
                     }
                 else:
                     result = {
@@ -246,13 +249,13 @@ class GitOperations:
                 merge_result = self.repo.merge(source)
                 if merge_result:
                     # Conflicts occurred
+                    conflicted_files = list(self.repo.index.unmerged_blobs().keys())
                     return {
                         "success": False,
-                        "message": "Merge conflicts detected. Please resolve conflicts manually.",
+                        "message": "Merge conflicts detected. Redirecting to conflict resolution...",
                         "has_conflicts": True,
-                        "conflicted_files": list(
-                            self.repo.index.unmerged_blobs().keys()
-                        ),
+                        "conflicted_files": conflicted_files,
+                        "redirect_to": "/git/conflicts/",
                     }
                 else:
                     return {
@@ -301,6 +304,91 @@ class GitOperations:
             # TODO
             print(e)
             return None
+
+    def create_branch(
+        self, branch_name: str, start_point: Optional[str] = None
+    ) -> Dict:
+        """
+        Create a new branch
+
+        Args:
+            branch_name: Name of the new branch to create
+            start_point: Starting point for the new branch (commit SHA or branch name)
+
+        Returns:
+            Dictionary with success status and message
+        """
+        try:
+            # Check if branch already exists
+            for branch in self.repo.branches:
+                if branch.name == branch_name:
+                    return {
+                        "success": False,
+                        "message": f"Branch '{branch_name}' already exists",
+                    }
+
+            # Determine the starting point
+            if start_point:
+                try:
+                    # Try to resolve as a commit SHA first
+                    start_commit = self.repo.commit(start_point)
+                    self.repo.create_head(branch_name, start_commit)
+                except GitCommandError:
+                    # Try to resolve as a branch name
+                    try:
+                        ref = self.repo.refs[start_point]
+                        self.repo.create_head(branch_name, ref)
+                    except Exception:
+                        return {
+                            "success": False,
+                            "message": f"Invalid start point: {start_point}",
+                        }
+            else:
+                # Create from current HEAD
+                self.repo.create_head(branch_name)
+
+            return {
+                "success": True,
+                "message": f"Successfully created branch '{branch_name}'",
+                "branch_name": branch_name,
+            }
+
+        except GitCommandError as e:
+            return {"success": False, "message": f"Failed to create branch: {str(e)}"}
+        except Exception as e:
+            return {"success": False, "message": f"Error: {str(e)}"}
+
+    def switch_and_create_branch(
+        self, branch_name: str, start_point: Optional[str] = None
+    ) -> Dict:
+        """
+        Create and switch to a new branch (git checkout -b)
+
+        Args:
+            branch_name: Name of the new branch to create
+            start_point: Starting point for the new branch (commit SHA or branch name)
+
+        Returns:
+            Dictionary with success status and message
+        """
+        try:
+            # Create the branch first
+            create_result = self.create_branch(branch_name, start_point)
+            if not create_result["success"]:
+                return create_result
+
+            # Then switch to it
+            branch = self.repo.heads[branch_name]
+            branch.checkout()
+
+            return {
+                "success": True,
+                "message": f"Successfully created and switched to branch '{branch_name}'",
+                "current_branch": branch_name,
+            }
+
+        except Exception as e:
+            return {"success": False, "message": f"Error: {str(e)}"}
 
     def get_current_branch(self) -> str:
         """
