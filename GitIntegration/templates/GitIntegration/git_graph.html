@@ -696,6 +696,9 @@
                     item.classList.add('current');
                 }
 
+                // Check if this is a remote branch
+                const isRemote = branchName.includes('/');
+
                 const colorBox = document.createElement('div');
                 colorBox.className = 'branch-color-box';
                 colorBox.style.backgroundColor = color;
@@ -706,8 +709,24 @@
                 item.appendChild(colorBox);
                 item.appendChild(label);
 
+                // Add remote indicator if applicable
+                if (isRemote) {
+                    const remoteIndicator = document.createElement('span');
+                    remoteIndicator.textContent = ' 📡';
+                    remoteIndicator.style.fontSize = '12px';
+                    remoteIndicator.style.color = '#3498db';
+                    remoteIndicator.title = 'Remote branch';
+                    item.appendChild(remoteIndicator);
+                    item.style.opacity = '0.8';
+                }
+
                 // Add double-click handler for branch switching
                 item.ondblclick = () => switchBranch(branchName);
+
+                // Add hover hint for remote branches
+                if (isRemote) {
+                    item.title = 'Remote branch - Double-click for more info';
+                }
 
                 branchList.appendChild(item);
             });
@@ -1162,6 +1181,13 @@
         });
 
         function switchBranch(branchName) {
+            // Check if this is a remote branch (contains /)
+            if (branchName.includes('/')) {
+                showRemoteBranchNotice(branchName);
+                return;
+            }
+
+            // For local branches, proceed with switching
             fetch('/git/switch-branch/', {
                 method: 'POST',
                 headers: {
@@ -1184,6 +1210,36 @@
             .catch(error => {
                 showToast('Failed to switch branch: ' + error.message, 'error');
             });
+        }
+
+        function showRemoteBranchNotice(branchName) {
+            const modal = document.getElementById('branch-modal');
+            const modalTitle = document.getElementById('modal-title');
+            const branchList = document.getElementById('modal-branch-list');
+
+            modalTitle.textContent = 'Remote Branch Information';
+            branchList.innerHTML = `
+                <div style="padding: 20px; text-align: center;">
+                    <div style="font-size: 48px; color: #3498db; margin-bottom: 20px;">📡</div>
+                    <h3 style="color: #2c3e50; margin-bottom: 15px;">This is a Remote Branch</h3>
+                    <p style="color: #7f8c8d; line-height: 1.6; margin-bottom: 20px;">
+                        <strong>${branchName}</strong> is a remote branch that exists on the remote repository but not locally.
+                    </p>
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; text-align: left;">
+                        <h4 style="color: #2c3e50; margin-top: 0;">To work with this branch:</h4>
+                        <ol style="margin: 10px 0; padding-left: 20px; color: #555;">
+                            <li>Create a local branch that tracks this remote branch</li>
+                            <li>Use: <code style="background: #ecf0f1; padding: 2px 5px; border-radius: 3px;">git checkout -b ${branchName.split('/')[1]} origin/${branchName.split('/')[1]}</code></li>
+                            <li>Or fetch the latest changes from remote first</li>
+                        </ol>
+                    </div>
+                    <button onclick="closeModal()" style="padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                        Understood
+                    </button>
+                </div>
+            `;
+
+            modal.style.display = 'flex';
         }
 
         function cherryPickToCurrent() {
@@ -1298,7 +1354,33 @@
                 item.appendChild(name);
                 item.appendChild(badge);
 
-                item.onclick = () => onSelect(branch.name);
+                // Check if this is a remote branch
+                const isRemote = branch.type === 'remote' || branch.name.includes('/');
+
+                if (isRemote) {
+                    // Add remote indicator
+                    const remoteIndicator = document.createElement('span');
+                    remoteIndicator.textContent = ' 📡';
+                    remoteIndicator.style.fontSize = '12px';
+                    remoteIndicator.style.color = '#3498db';
+                    remoteIndicator.title = 'Remote branch';
+                    item.appendChild(remoteIndicator);
+
+                    // Make the item visually different
+                    item.style.opacity = '0.8';
+                    item.style.fontStyle = 'italic';
+
+                    // Show notice instead of selecting
+                    item.onclick = () => showRemoteBranchNotice(branch.name);
+                } else {
+                    // Only allow selection of local branches
+                    item.onclick = () => onSelect(branch.name);
+                }
+
+                // Add hover hint
+                if (isRemote) {
+                    item.title = 'Remote branch - Click for more info';
+                }
 
                 branchList.appendChild(item);
             });
@@ -1344,6 +1426,8 @@
             let selectedTarget = null;
 
             branches.forEach(branch => {
+                const isRemote = branch.type === 'remote' || branch.name.includes('/');
+
                 // Source branch item
                 const sourceItem = document.createElement('li');
                 sourceItem.className = 'branch-list-item';
@@ -1361,7 +1445,22 @@
                 sourceItem.appendChild(sourceName);
                 sourceItem.appendChild(sourceBadge);
 
+                // Add remote indicator
+                if (isRemote) {
+                    const remoteIndicator = document.createElement('span');
+                    remoteIndicator.textContent = ' 📡';
+                    remoteIndicator.style.fontSize = '12px';
+                    remoteIndicator.style.color = '#3498db';
+                    sourceItem.appendChild(remoteIndicator);
+                    sourceItem.style.opacity = '0.8';
+                    sourceItem.title = 'Remote branch - Cannot be used for merge directly';
+                }
+
                 sourceItem.onclick = () => {
+                    if (isRemote) {
+                        showRemoteBranchNotice(branch.name);
+                        return;
+                    }
                     document.querySelectorAll('#source-list .branch-list-item').forEach(item => {
                         item.classList.remove('selected');
                     });
@@ -1373,8 +1472,8 @@
                 sourceList.id = 'source-list';
                 sourceList.appendChild(sourceItem);
 
-                // Target branch item (skip current branch)
-                if (!branch.is_current) {
+                // Target branch item (skip current branch and remote branches)
+                if (!branch.is_current && !isRemote) {
                     const targetItem = document.createElement('li');
                     targetItem.className = 'branch-list-item';
 
