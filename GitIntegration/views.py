@@ -100,6 +100,33 @@ def git_commit_changes(request):
         return JsonResponse({"success": False, "message": str(e)}, status=500)
 
 
+@csrf_exempt
+@require_http_methods(["POST"])
+def git_discard_changes(request):
+    """API endpoint to discard changes to files"""
+    try:
+        data = json.loads(request.body)
+        file_paths = data.get("files", [])
+
+        if not file_paths:
+            return JsonResponse(
+                {"success": False, "message": "No files specified"}, status=400
+            )
+
+        git_path = get_git_repository_path(request)
+        git_status = GitStatus(git_path)
+        result = git_status.discard_changes(file_paths)
+
+        return JsonResponse(result)
+
+    except json.JSONDecodeError:
+        return JsonResponse(
+            {"success": False, "message": "Invalid JSON data"}, status=400
+        )
+    except Exception as e:
+        return JsonResponse({"success": False, "message": str(e)}, status=500)
+
+
 def git_conflicts(request):
     """Render the git conflict resolution page"""
     return render(request, "GitIntegration/git_conflicts.html")

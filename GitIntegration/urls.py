@@ -16,6 +16,7 @@ urlpatterns = [
     ),
     path("status/api/", views.git_status_api, name="git_status_api"),
     path("stage/api/", views.git_stage_files, name="git_stage_files"),
+    path("discard/api/", views.git_discard_changes, name="git_discard_changes"),
     path("commit/api/", views.git_commit_changes, name="git_commit_changes"),
     path("commits/api/", views.git_commits_api, name="git_commits_api"),
     path("branches/", views.git_branches, name="git_branches"),

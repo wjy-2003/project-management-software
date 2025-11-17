@@ -244,10 +244,21 @@ class GitOperations:
                     "message": f"Branch '{source_branch}' not found",
                 }
 
-            # Perform merge
+            # Check if there's anything to merge
             try:
-                merge_result = self.repo.merge(source)
-                if merge_result:
+                # Get current HEAD before merge
+                current_head = self.repo.head.commit.hexsha
+
+                # Use git.merge command for more control
+                _ = self.repo.git.merge(
+                    source.name if hasattr(source, "name") else str(source)
+                )
+
+                # Get new HEAD after merge
+                new_head = self.repo.head.commit.hexsha
+
+                # Check if merge was successful by checking for conflicts
+                if list(self.repo.index.unmerged_blobs().keys()):
                     # Conflicts occurred
                     conflicted_files = list(self.repo.index.unmerged_blobs().keys())
                     return {
@@ -257,10 +268,19 @@ class GitOperations:
                         "conflicted_files": conflicted_files,
                         "redirect_to": "/git/conflicts/",
                     }
-                else:
+                elif current_head == new_head:
+                    # No new commit was created - branches were already up to date
                     return {
                         "success": True,
-                        "message": f"Successfully merged '{source_branch}' into '{current_branch}'",
+                        "message": f"Branch '{source_branch}' is already up to date with '{current_branch}'",
+                        "no_changes": True,
+                    }
+                else:
+                    # Successful merge - new commit was created
+                    return {
+                        "success": True,
+                        "message": f"Successfully merged '{source_branch}' into '{current_branch}' - New merge commit created",
+                        "merge_commit_created": True,
                     }
 
             except GitCommandError as e:

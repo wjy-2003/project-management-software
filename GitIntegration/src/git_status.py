@@ -229,17 +229,88 @@ class GitStatus:
             Dictionary with success status and message
         """
         try:
+            discarded_files = []
+            failed_files = []
+
             for file_path in file_paths:
-                # Use git checkout to discard changes
-                self.repo.git.checkout("--", file_path)
+                try:
+                    # First unstage the file if it's staged
+                    try:
+                        self.repo.git.reset("HEAD", "--", file_path)
+                    except GitCommandError:
+                        # File might not be staged, that's okay
+                        pass
 
-            return {
-                "success": True,
-                "message": f"Successfully discarded changes for {len(file_paths)} file(s)",
-            }
+                    # Get file status to determine the right discard method
+                    status_output = self.repo.git.status("--porcelain", "--", file_path)
 
-        except GitCommandError as e:
-            return {"success": False, "message": f"Failed to discard changes: {str(e)}"}
+                    if not status_output.strip():
+                        # Clean file, nothing to discard
+                        discarded_files.append(file_path)
+                        continue
+
+                    status_line = (
+                        status_output.strip().split("\n")[0]
+                        if status_output.strip()
+                        else ""
+                    )
+                    status_code = status_line[:2] if len(status_line) >= 2 else ""
+
+                    if status_code == "??":
+                        # Untracked file - remove it
+                        full_path = os.path.join(self.repo_path, file_path)
+                        if os.path.exists(full_path):
+                            os.remove(full_path)
+                            discarded_files.append(file_path)
+                        else:
+                            failed_files.append((file_path, "File not found"))
+
+                    elif status_code in [" M", "AM", "MM"]:
+                        # Modified file - use checkout to restore
+                        self.repo.git.checkout("--", file_path)
+                        discarded_files.append(file_path)
+
+                    elif status_code in ["D ", "MD"]:
+                        # Deleted file - restore it
+                        self.repo.git.checkout("HEAD", "--", file_path)
+                        discarded_files.append(file_path)
+
+                    elif status_code == " A ":
+                        # Added file - remove it and unstage
+                        full_path = os.path.join(self.repo_path, file_path)
+                        if os.path.exists(full_path):
+                            os.remove(full_path)
+                        try:
+                            self.repo.git.reset("HEAD", "--", file_path)
+                        except GitCommandError:
+                            pass
+                        discarded_files.append(file_path)
+
+                    else:
+                        # Other cases - try checkout
+                        self.repo.git.checkout("--", file_path)
+                        discarded_files.append(file_path)
+
+                except Exception as e:
+                    failed_files.append((file_path, str(e)))
+
+            if failed_files:
+                if discarded_files:
+                    return {
+                        "success": False,
+                        "message": f"Partially successful. Discarded {len(discarded_files)} file(s), but failed for {len(failed_files)}: {', '.join(f[0] for f in failed_files[:3])}",
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "message": f"Failed to discard any files: {', '.join(f[0] for f in failed_files[:3])}",
+                    }
+            else:
+                return {
+                    "success": True,
+                    "message": f"Successfully discarded changes for {len(discarded_files)} file(s)",
+                }
+
         except Exception as e:
             return {"success": False, "message": f"Error: {str(e)}"}
 

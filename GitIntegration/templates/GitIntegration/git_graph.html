@@ -110,12 +110,14 @@
             position: relative;
             overflow: auto;
             height: 80vh;
+            min-height: 400px;
             background: #fafafa;
         }
 
         svg {
             display: block;
             margin: 0 auto;
+            min-height: 100%;
         }
 
         .branch-line {
@@ -506,6 +508,90 @@
         .toast.show {
             opacity: 1;
         }
+
+        /* Branch List Modal Styles */
+        .branch-management-content {
+            padding: 10px 0;
+        }
+
+        .branch-list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        .branch-list-header h3 {
+            margin: 0;
+            color: #2c3e50;
+            font-size: 18px;
+        }
+
+        .branch-list-item.main {
+            border-left: 4px solid #2ecc71;
+            font-weight: bold;
+        }
+
+        .branch-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            margin-bottom: 8px;
+            border: 1px solid #ecf0f1;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: white;
+        }
+
+        .branch-list-item:hover {
+            background: #f8f9fa;
+            border-color: #3498db;
+            transform: translateX(5px);
+        }
+
+        .branch-list-item.current {
+            background: #e8f4f8;
+            border-color: #3498db;
+        }
+
+        .branch-item-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .branch-item-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .branch-action-btn {
+            padding: 4px 12px;
+            font-size: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .branch-action-btn:hover {
+            background: #f0f0f0;
+        }
+
+        .branch-action-btn.switch {
+            background: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+
+        .branch-action-btn.switch:hover {
+            background: #2980b9;
+        }
     </style>
 </head>
 <body>
@@ -535,6 +621,7 @@
                 <button onclick="zoomIn()">Zoom In</button>
                 <button onclick="zoomOut()">Zoom Out</button>
                 <button onclick="resetZoom()">Reset</button>
+                <button onclick="showBranchListModal()">Branches</button>
                 <button onclick="window.location.href='/git/commit/'" style="background: #2ecc71;">Commit Changes</button>
             </div>
         </div>
@@ -586,10 +673,26 @@
         </div>
     </div>
 
+    <!-- Branch List Modal -->
+    <div class="modal" id="branch-list-modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2>Branch Management</h2>
+                <button class="close-btn" onclick="closeBranchListModal()">&times;</button>
+            </div>
+            <div class="branch-management-content">
+                <div class="branch-list-header">
+                    <h3>All Branches</h3>
+                    <button class="action-btn primary" onclick="showMergeDialog()">Merge Branches...</button>
+                </div>
+                <ul class="branch-list" id="branch-list-container"></ul>
+            </div>
+        </div>
+    </div>
+
     <!-- Action Buttons -->
     <div class="action-buttons" id="action-buttons">
         <button class="action-btn primary" onclick="resetSelected()">Reset to Selected</button>
-        <button class="action-btn" onclick="showMergeDialog()">Merge Branches...</button>
         <button class="action-btn" onclick="clearSelection()">Clear Selection</button>
     </div>
 
@@ -598,6 +701,7 @@
 
     <script>
         let currentData = null;
+        let currentBranchesData = null; // Store branches data for type lookup
         let svg = null;
         let g = null;
         let zoom = null;
@@ -696,8 +800,11 @@
                     item.classList.add('current');
                 }
 
-                // Check if this is a remote branch
-                const isRemote = branchName.includes('/');
+                // Find branch info from branches array to get type
+                const branchInfo = currentData.branches ?
+                    currentData.branches.find(b => b.name === branchName) :
+                    { type: 'local' };
+                const isRemote = branchInfo.type === 'remote';
 
                 const colorBox = document.createElement('div');
                 colorBox.className = 'branch-color-box';
@@ -721,12 +828,16 @@
                 }
 
                 // Add double-click handler for branch switching
-                item.ondblclick = () => switchBranch(branchName);
+                item.ondblclick = () => {
+                    if (isRemote) {
+                        showRemoteBranchNotice(branchName);
+                    } else {
+                        switchBranch(branchName, branchInfo.type);
+                    }
+                };
 
-                // Add hover hint for remote branches
-                if (isRemote) {
-                    item.title = 'Remote branch - Double-click for more info';
-                }
+                // Add hover hint
+                item.title = isRemote ? 'Remote branch - Double-click for more info' : 'Local branch - Double-click to switch';
 
                 branchList.appendChild(item);
             });
@@ -1180,14 +1291,9 @@
             }
         });
 
-        function switchBranch(branchName) {
-            // Check if this is a remote branch (contains /)
-            if (branchName.includes('/')) {
-                showRemoteBranchNotice(branchName);
-                return;
-            }
-
+        function switchBranch(branchName, branchType) {
             // For local branches, proceed with switching
+            // For remote branches, show notice
             fetch('/git/switch-branch/', {
                 method: 'POST',
                 headers: {
@@ -1355,7 +1461,7 @@
                 item.appendChild(badge);
 
                 // Check if this is a remote branch
-                const isRemote = branch.type === 'remote' || branch.name.includes('/');
+                const isRemote = branch.type === 'remote';
 
                 if (isRemote) {
                     // Add remote indicator
@@ -1394,6 +1500,8 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
+                        // Close branch list modal if it's open
+                        document.getElementById('branch-list-modal').style.display = 'none';
                         showMergeBranchSelection(data.branches);
                     } else {
                         showToast('Failed to load branches: ' + data.message, 'error');
@@ -1426,7 +1534,7 @@
             let selectedTarget = null;
 
             branches.forEach(branch => {
-                const isRemote = branch.type === 'remote' || branch.name.includes('/');
+                const isRemote = branch.type === 'remote';
 
                 // Source branch item
                 const sourceItem = document.createElement('li');
@@ -1546,14 +1654,7 @@
                     loadGraph(); // Reload graph
                 } else {
                     if (data.has_conflicts) {
-                        showToast('Merge conflicts detected! Redirecting to conflict resolution...', 'warning');
-                        if (data.redirect_to) {
-                            setTimeout(() => {
-                                window.location.href = data.redirect_to;
-                            }, 1500);
-                        } else if (data.conflicted_files) {
-                            console.log('Conflicted files:', data.conflicted_files);
-                        }
+                        showToast('Merge conflicts detected! Please go to the Commit page to resolve conflicts manually.', 'warning');
                     } else {
                         showToast(data.message, 'error');
                     }
@@ -1567,6 +1668,177 @@
 
         function closeModal() {
             document.getElementById('branch-modal').style.display = 'none';
+        }
+
+        function showBranchListModal() {
+            const modal = document.getElementById('branch-list-modal');
+            const container = document.getElementById('branch-list-container');
+
+            // Load branches
+            fetch('/git/branches/')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayBranchList(data.branches);
+                        modal.style.display = 'flex';
+                    } else {
+                        showToast('Failed to load branches: ' + data.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    showToast('Failed to load branches: ' + error.message, 'error');
+                });
+        }
+
+        function closeBranchListModal() {
+            document.getElementById('branch-list-modal').style.display = 'none';
+        }
+
+        function displayBranchList(branches) {
+            const container = document.getElementById('branch-list-container');
+            container.innerHTML = '';
+
+            // Store branches data for type lookup
+            currentBranchesData = branches;
+
+            // Sort branches: main first, then current branch, then others alphabetically
+            const sortedBranches = [...branches].sort((a, b) => {
+                // Main branch always first
+                if (a.name === 'main') return -1;
+                if (b.name === 'main') return 1;
+
+                // Current branch second
+                if (a.is_current) return -1;
+                if (b.is_current) return 1;
+
+                // Then alphabetically
+                return a.name.localeCompare(b.name);
+            });
+
+            sortedBranches.forEach(branch => {
+                const item = document.createElement('li');
+                item.className = 'branch-list-item';
+
+                if (branch.is_current) {
+                    item.classList.add('current');
+                }
+
+                if (branch.name === 'main') {
+                    item.classList.add('main');
+                }
+
+                const isRemote = branch.type === 'remote';
+
+                const infoDiv = document.createElement('div');
+                infoDiv.className = 'branch-item-info';
+
+                // Branch name and badge
+                const nameSpan = document.createElement('span');
+                nameSpan.style.fontWeight = branch.name === 'main' || branch.is_current ? 'bold' : 'normal';
+                nameSpan.textContent = branch.name;
+
+                const badge = document.createElement('span');
+                badge.className = 'branch-badge';
+                badge.style.marginLeft = '8px';
+                badge.textContent = branch.type;
+
+                infoDiv.appendChild(nameSpan);
+                infoDiv.appendChild(badge);
+
+                // Add remote indicator if applicable
+                if (isRemote) {
+                    const remoteIndicator = document.createElement('span');
+                    remoteIndicator.textContent = ' 📡';
+                    remoteIndicator.style.fontSize = '14px';
+                    remoteIndicator.title = 'Remote branch';
+                    infoDiv.appendChild(remoteIndicator);
+                }
+
+                // Actions
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'branch-item-actions';
+
+                if (!isRemote) {
+                    // Switch button for local branches
+                    if (!branch.is_current) {
+                        const switchBtn = document.createElement('button');
+                        switchBtn.className = 'branch-action-btn switch';
+                        switchBtn.textContent = 'Switch';
+                        switchBtn.onclick = (e) => {
+                            e.stopPropagation();
+                            switchBranchFromList(branch.name);
+                        };
+                        actionsDiv.appendChild(switchBtn);
+                    } else {
+                        const currentBtn = document.createElement('span');
+                        currentBtn.className = 'branch-action-btn';
+                        currentBtn.style.background = '#95a5a6';
+                        currentBtn.style.color = 'white';
+                        currentBtn.textContent = 'Current';
+                        actionsDiv.appendChild(currentBtn);
+                    }
+                } else {
+                    // Info button for remote branches
+                    const infoBtn = document.createElement('button');
+                    infoBtn.className = 'branch-action-btn';
+                    infoBtn.textContent = 'Info';
+                    infoBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        showRemoteBranchNotice(branch.name);
+                    };
+                    actionsDiv.appendChild(infoBtn);
+                }
+
+                item.appendChild(infoDiv);
+                item.appendChild(actionsDiv);
+
+                // Click on item to switch (for local branches) or show info (for remote)
+                item.onclick = () => {
+                    if (isRemote) {
+                        showRemoteBranchNotice(branch.name);
+                    } else if (!branch.is_current) {
+                        switchBranchFromList(branch.name);
+                    }
+                };
+
+                container.appendChild(item);
+            });
+        }
+
+        function switchBranchFromList(branchName) {
+            // Check if this is a remote branch from branch data
+            const branchInfo = currentBranchesData ?
+                currentBranchesData.find(b => b.name === branchName) :
+                { type: 'local' };
+
+            if (branchInfo.type === 'remote') {
+                showRemoteBranchNotice(branchName);
+                return;
+            }
+
+            fetch('/git/switch-branch/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    branch_name: branchName
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(`Successfully switched to '${branchName}'`, 'success');
+                    closeBranchListModal();
+                    loadGraph(); // Reload graph
+                } else {
+                    showToast(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showToast('Failed to switch branch: ' + error.message, 'error');
+            });
         }
 
         function copyCommitSHA() {

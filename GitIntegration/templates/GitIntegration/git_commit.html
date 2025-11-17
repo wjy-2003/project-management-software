@@ -383,6 +383,8 @@
     <!-- Monaco Editor -->
     <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
     <script>
+        let diffEditor;
+        let singleEditor;
         let editor;
         let currentStatus = null;
         let selectedFile = null;
@@ -390,11 +392,37 @@
         // Initialize Monaco Editor
         require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs' } });
         require(['vs/editor/editor.main'], function () {
-            editor = monaco.editor.create(document.getElementById('monaco-editor'), {
+            // Create diff editor container
+            const container = document.getElementById('monaco-editor');
+            container.innerHTML = `
+                <div style="display: flex; height: 100%;">
+                    <div id="diff-editor" style="flex: 1;"></div>
+                    <div id="original-editor" style="flex: 1; display: none;"></div>
+                </div>
+            `;
+
+            // Create diff editor for side-by-side comparison
+            diffEditor = monaco.editor.createDiffEditor(document.getElementById('diff-editor'), {
+                theme: 'vs-dark',
+                automaticLayout: true,
+                minimap: { enabled: false },
+                scrollBeyondLastLine: false,
+                fontSize: 12,
+                fontFamily: 'Consolas, Monaco, monospace',
+                renderSideBySide: true,
+                renderWhitespace: 'selection',
+                wordWrap: 'on',
+                ignoreTrimWhitespace: false,
+                renderLineHighlight: 'none',
+                diffAlgorithm: 'advanced'
+            });
+
+            // Create single editor for untracked files
+            singleEditor = monaco.editor.create(document.getElementById('original-editor'), {
                 value: '',
                 language: 'plaintext',
                 theme: 'vs-dark',
-                readOnly: true,
+                readOnly: false,
                 automaticLayout: true,
                 minimap: { enabled: false },
                 scrollBeyondLastLine: false,
@@ -404,6 +432,8 @@
                 renderWhitespace: 'selection',
                 wordWrap: 'on'
             });
+
+            editor = diffEditor; // Set default editor reference
 
             // Load initial status
             loadStatus();
@@ -563,71 +593,102 @@
 
             // Show diff in editor
             if (file.status === 'untracked' && file.content) {
-                // For untracked files, show the full content
-                editor.setValue(file.content);
-                editor.updateOptions({
-                    language: getLanguageFromPath(file.path),
-                    readOnly: false
-                });
+                // For untracked files, show the full content in single editor
+                showSingleFile(file.content, file.path);
             } else if (file.diff) {
-                // For modified files, show the diff
+                // For modified files, show the diff in diff editor
                 showDiffInEditor(file.diff, file.path);
             } else {
-                editor.setValue('(No content to display)');
+                showNoContent();
             }
         }
 
-        // Show diff in Monaco editor
+        // Show diff in Monaco diff editor
         function showDiffInEditor(diffText, filePath) {
-            // Simple diff formatting
-            const lines = diffText.split('\n');
-            const formattedLines = [];
+            // Show diff editor, hide single editor
+            document.getElementById('diff-editor').style.display = 'block';
+            document.getElementById('original-editor').style.display = 'none';
+            editor = diffEditor;
 
-            for (const line of lines) {
-                if (line.startsWith('+') && !line.startsWith('+++')) {
-                    formattedLines.push(line);
-                } else if (line.startsWith('-') && !line.startsWith('---')) {
-                    formattedLines.push(line);
-                } else if (line.startsWith(' ')) {
-                    formattedLines.push(line);
+            // Parse diff text to extract original and modified content
+            const lines = diffText.split('\n');
+            let originalLines = [];
+            let modifiedLines = [];
+            let inOriginal = false;
+            let inModified = false;
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+
+                if (line.startsWith('---')) {
+                    // Skip file headers
+                    continue;
+                } else if (line.startsWith('+++')) {
+                    // Skip file headers
+                    continue;
                 } else if (line.startsWith('@@')) {
-                    formattedLines.push('');
-                    formattedLines.push(line);
-                    formattedLines.push('');
-                } else {
-                    formattedLines.push(line);
+                    // Reset for new hunk
+                    inOriginal = false;
+                    inModified = false;
+                } else if (line.startsWith('-')) {
+                    // Removed line (exists in original)
+                    originalLines.push(line.substring(1));
+                    inOriginal = true;
+                    inModified = false;
+                } else if (line.startsWith('+')) {
+                    // Added line (exists in modified)
+                    modifiedLines.push(line.substring(1));
+                    inOriginal = false;
+                    inModified = true;
+                } else if (line.startsWith(' ')) {
+                    // Context line (exists in both)
+                    const contextLine = line.substring(1);
+                    originalLines.push(contextLine);
+                    modifiedLines.push(contextLine);
                 }
             }
 
-            editor.setValue(formattedLines.join('\n'));
-            editor.updateOptions({
-                language: 'diff',
+            const originalContent = originalLines.join('\n');
+            const modifiedContent = modifiedLines.join('\n');
+
+            // Set the diff model
+            const language = getLanguageFromPath(filePath);
+            const originalModel = monaco.editor.createModel(originalContent, language);
+            const modifiedModel = monaco.editor.createModel(modifiedContent, language);
+
+            diffEditor.setModel({
+                original: originalModel,
+                modified: modifiedModel
+            });
+        }
+
+        // Show single file content in editor
+        function showSingleFile(content, filePath) {
+            // Show single editor, hide diff editor
+            document.getElementById('diff-editor').style.display = 'none';
+            document.getElementById('original-editor').style.display = 'block';
+            editor = singleEditor;
+
+            const language = getLanguageFromPath(filePath);
+            singleEditor.setValue(content);
+            singleEditor.updateOptions({
+                language: language,
+                readOnly: false
+            });
+        }
+
+        // Show no content placeholder
+        function showNoContent() {
+            // Show single editor, hide diff editor
+            document.getElementById('diff-editor').style.display = 'none';
+            document.getElementById('original-editor').style.display = 'block';
+            editor = singleEditor;
+
+            singleEditor.setValue('(No content to display)');
+            singleEditor.updateOptions({
+                language: 'plaintext',
                 readOnly: true
             });
-
-            // Add color decorations
-            const decorations = [];
-            lines.forEach((line, index) => {
-                if (line.startsWith('+') && !line.startsWith('+++')) {
-                    decorations.push({
-                        range: new monaco.Range(index + 1, 1, index + 1, 1),
-                        options: {
-                            className: 'diff-line-added',
-                            isWholeLine: true
-                        }
-                    });
-                } else if (line.startsWith('-') && !line.startsWith('---')) {
-                    decorations.push({
-                        range: new monaco.Range(index + 1, 1, index + 1, 1),
-                        options: {
-                            className: 'diff-line-removed',
-                            isWholeLine: true
-                        }
-                    });
-                }
-            });
-
-            editor.deltaDecorations([], decorations);
         }
 
         // Get language from file path
@@ -811,25 +872,26 @@
                 return;
             }
 
-            if (confirm(`Are you sure you want to discard changes to ${selectedFile.path}?`)) {
-                fetch('/git/stage/api/', {
+            const fileStatus = selectedFile.is_staged ? 'staged' : 'unstaged';
+            const actionText = fileStatus === 'staged' ? 'and unstage' : 'discard';
+
+            if (confirm(`Are you sure you want to ${actionText} changes to ${selectedFile.path}? This cannot be undone.`)) {
+                fetch('/git/discard/api/', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-CSRFToken': getCookie('csrftoken')
                     },
                     body: JSON.stringify({
-                        files: [selectedFile.path],
-                        stage: false
+                        files: [selectedFile.path]
                     })
                 })
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        // Use git checkout to discard
-                        const repoPath = window.location.pathname.split('/git/')[0] || '';
-                        // Note: This would need a proper API endpoint for discarding changes
-                        showToast('Discard changes not yet implemented', 'info');
+                        showToast(data.message, 'success');
+                        loadStatus(); // Reload status to update the file list
+                        editor.setValue(''); // Clear editor
                     } else {
                         showToast(data.message, 'error');
                     }
@@ -871,7 +933,8 @@
                     showToast(`Successfully committed ${data.commit_sha}`, 'success');
                     document.getElementById('commit-message').value = '';
                     loadStatus();
-                    editor.setValue('');
+                    if (singleEditor) singleEditor.setValue('');
+                    if (diffEditor) diffEditor.setModel({ original: null, modified: null });
                 } else {
                     showToast(data.message, 'error');
                 }
