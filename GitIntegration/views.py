@@ -105,27 +105,52 @@ def git_commit_changes(request):
 @csrf_exempt
 @require_http_methods(["POST"])
 def git_discard_changes(request):
-    """API endpoint to discard changes to files"""
+    """API endpoint to discard changes to files with safety confirmations"""
+    user = (
+        getattr(request.user, "username", "anonymous")
+        if hasattr(request, "user")
+        else "anonymous"
+    )
+
     try:
         data = json.loads(request.body)
         file_paths = data.get("files", [])
+        force_delete = data.get("force_delete", False)
+        create_backup = data.get("create_backup", True)
 
         if not file_paths:
             return JsonResponse(
                 {"success": False, "message": "No files specified"}, status=400
             )
 
+        # Log the discard operation attempt
+        log_git_operation(
+            "git_discard_changes", str(file_paths), user=user, success=False
+        )
+
         git_path = get_git_repository_path(request)
         git_status = GitStatus(git_path)
-        result = git_status.discard_changes(file_paths)
+        result = git_status.discard_changes(
+            file_paths, force_delete=force_delete, create_backup=create_backup
+        )
+
+        # Log success if operation succeeded
+        if result.get("success"):
+            log_git_operation(
+                "git_discard_changes", str(file_paths), user=user, success=True
+            )
 
         return JsonResponse(result)
 
     except json.JSONDecodeError:
+        log_git_operation(
+            "git_discard_changes", "invalid_json", user=user, success=False
+        )
         return JsonResponse(
             {"success": False, "message": "Invalid JSON data"}, status=400
         )
     except Exception as e:
+        log_git_operation("git_discard_changes", "error", user=user, success=False)
         return JsonResponse({"success": False, "message": str(e)}, status=500)
 
 

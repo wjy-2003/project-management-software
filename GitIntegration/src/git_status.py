@@ -218,19 +218,46 @@ class GitStatus:
         except Exception:
             return "unknown"
 
-    def discard_changes(self, file_paths: List[str]) -> Dict:
+    def discard_changes(
+        self,
+        file_paths: List[str],
+        force_delete: bool = False,
+        create_backup: bool = True,
+    ) -> Dict:
         """
-        Discard changes to files
+        Discard changes to files with safety mechanisms
 
         Args:
             file_paths: List of file paths to discard changes for
+            force_delete: Required flag for destructive operations (default: False)
+            create_backup: Create backup of files before deletion (default: True)
 
         Returns:
             Dictionary with success status and message
         """
         try:
+            # Safety check: refuse to proceed without explicit force flag
+            if not force_delete:
+                return {
+                    "success": False,
+                    "message": "Destructive operation requires explicit confirmation. Set force_delete=True to proceed or delet manually",
+                }
+
             discarded_files = []
             failed_files = []
+            backup_dir = None
+
+            # Create backup directory if requested
+            if create_backup:
+                import datetime
+
+                backup_dir = os.path.join(
+                    self.repo_path,
+                    ".git",
+                    "backups",
+                    f"discard_backup_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                )
+                os.makedirs(backup_dir, exist_ok=True)
 
             for file_path in file_paths:
                 try:
@@ -257,9 +284,17 @@ class GitStatus:
                     status_code = status_line[:2] if len(status_line) >= 2 else ""
 
                     if status_code == "??":
-                        # Untracked file - remove it
+                        # Untracked file - create backup then remove it
                         full_path = os.path.join(self.repo_path, file_path)
                         if os.path.exists(full_path):
+                            # Create backup if enabled
+                            if backup_dir:
+                                import shutil
+
+                                backup_path = os.path.join(backup_dir, file_path)
+                                os.makedirs(os.path.dirname(backup_path), exist_ok=True)
+                                shutil.copy2(full_path, backup_path)
+
                             os.remove(full_path)
                             discarded_files.append(file_path)
                         else:
@@ -276,9 +311,17 @@ class GitStatus:
                         discarded_files.append(file_path)
 
                     elif status_code == " A ":
-                        # Added file - remove it and unstage
+                        # Added file - create backup then remove it and unstage
                         full_path = os.path.join(self.repo_path, file_path)
                         if os.path.exists(full_path):
+                            # Create backup if enabled
+                            if backup_dir:
+                                import shutil
+
+                                backup_path = os.path.join(backup_dir, file_path)
+                                os.makedirs(os.path.dirname(backup_path), exist_ok=True)
+                                shutil.copy2(full_path, backup_path)
+
                             os.remove(full_path)
                         try:
                             self.repo.git.reset("HEAD", "--", file_path)
@@ -307,9 +350,15 @@ class GitStatus:
                         "message": f"Failed to discard any files: {', '.join(f[0] for f in failed_files[:3])}",
                     }
             else:
+                success_message = (
+                    f"Successfully discarded changes for {len(discarded_files)} file(s)"
+                )
+                if backup_dir:
+                    success_message += f". Backup created at: {backup_dir}"
                 return {
                     "success": True,
-                    "message": f"Successfully discarded changes for {len(discarded_files)} file(s)",
+                    "message": success_message,
+                    "backup_path": backup_dir if backup_dir else None,
                 }
 
         except Exception as e:
