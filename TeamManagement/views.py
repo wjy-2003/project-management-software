@@ -24,13 +24,13 @@ USER_FIELD_NAME = next(
 )
 
 if TEAM_FIELD_NAME is None or USER_FIELD_NAME is None:
-    raise ImproperlyConfigured("TeamMember 模型必须包含指向 Team 和用户模型的关联字段。")
+    raise ImproperlyConfigured("TeamMember model must include foreign key fields to both Team and the user model.")
 
 TEAM_FIELD_ID_LOOKUP = f"{TEAM_FIELD_NAME}_id"
 USER_FIELD_LOOKUP = USER_FIELD_NAME
 
 ROLE_FIELD_NAME = next(
-    (name for name, field in TEAM_MEMBER_FIELDS.items() if field.name == "role" or field.related_model and field.related_model.__name__.lower() in {"role", "teamrole"}),
+    (name for name, field in TEAM_MEMBER_FIELDS.items() if field.name == "role" or (field.related_model and field.related_model.__name__.lower() in {"role", "teamrole"})),
     None,
 )
 
@@ -131,7 +131,9 @@ class TeamMemberForm(forms.ModelForm):
     def __init__(self, *args, team: Team | None = None, **kwargs):
         super().__init__(*args, **kwargs)
         if team and USER_FIELD_NAME in self.fields:
-            current_members = TeamMember.objects.filter(**{TEAM_FIELD_NAME: team}).values_list(f"{USER_FIELD_NAME}_id", flat=True)
+            current_members = TeamMember.objects.filter(**{TEAM_FIELD_NAME: team}).values_list(
+                f"{USER_FIELD_NAME}_id", flat=True
+            )
             self.fields[USER_FIELD_NAME].queryset = User.objects.exclude(pk__in=current_members)
 
 
@@ -169,7 +171,7 @@ def team_create(request):
                 **{TEAM_FIELD_NAME: team, USER_FIELD_NAME: request.user},
                 defaults=membership_defaults,
             )
-        messages.success(request, _("团队创建成功"))
+        messages.success(request, _("Team created successfully"))
         return redirect(_safe_reverse("team_detail", pk=team.pk))
     return render(request, "TeamManagement/team_form.html", {"form": form})
 
@@ -182,7 +184,7 @@ def team_update(request, pk):
     form = TeamForm(request.POST or None, instance=team)
     if request.method == "POST" and form.is_valid():
         form.save()
-        messages.success(request, _("团队信息已更新"))
+        messages.success(request, _("Team information updated successfully"))
         return redirect(_safe_reverse("team_detail", pk=team.pk))
     return render(request, "TeamManagement/team_form.html", {"form": form, "team": team})
 
@@ -193,7 +195,7 @@ def team_delete(request, pk):
     team = get_object_or_404(Team, pk=pk)
     _ensure_team_permission(request.user, team, manage=True)
     team.delete()
-    messages.success(request, _("团队已删除"))
+    messages.success(request, _("Team deleted successfully"))
     return redirect(_safe_reverse("team_list"))
 
 
@@ -207,7 +209,7 @@ def team_member_add(request, pk):
         membership = form.save(commit=False)
         setattr(membership, TEAM_FIELD_NAME, team)
         membership.save()
-        messages.success(request, _("成员已加入团队"))
+        messages.success(request, _("Member added to team successfully"))
         return redirect(_safe_reverse("team_detail", pk=team.pk))
     return render(request, "TeamManagement/team_member_form.html", {"form": form, "team": team})
 
@@ -223,7 +225,7 @@ def team_member_remove(request, pk, member_id):
         **{TEAM_FIELD_NAME: team},
     )
     if getattr(membership, USER_FIELD_NAME) == request.user and not request.user.is_superuser:
-        raise PermissionDenied(_("不能移除自身。"))
+        raise PermissionDenied(_("Cannot remove yourself."))
     membership.delete()
-    messages.success(request, _("成员已移除"))
+    messages.success(request, _("Member removed successfully"))
     return redirect(_safe_reverse("team_detail", pk=team.pk))

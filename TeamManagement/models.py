@@ -16,7 +16,7 @@ class Permission(models.Model):
 
 class Role(models.Model):
     name = models.CharField(max_length=64, unique=True)
-    description = models.TextualField(blank=True)
+    description = models.TextField(blank=True)
     permissions = models.ManyToManyField(Permission, blank=True)
 
     class Meta:
@@ -49,32 +49,19 @@ class Team(models.Model):
 
 
 class TeamMember(models.Model):
-    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    title = models.CharField(max_length=128, blank=True)
-    phone = models.CharField(max_length=32, blank=True)
-
-    class Meta:
-        verbose_name = "Team member"
-        verbose_name_plural = "Team members"
-
-    def __str__(self):
-        return self.user.get_full_name() or self.user.get_username()
-
-
-class TeamMembership(models.Model):
-    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="memberships")
-    member = models.ForeignKey(TeamMember, on_delete=models.CASCADE, related_name="memberships")
-    role = models.ForeignKey(Role, on_delete=models.PROTECT, related_name="memberships")
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="members")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="team_memberships")
+    role = models.ForeignKey(Role, on_delete=models.PROTECT, related_name="members")
     is_active = models.BooleanField(default=True)
     joined_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        verbose_name = "Team membership"
-        verbose_name_plural = "Team memberships"
-        unique_together = ("team", "member")
+        verbose_name = "Team member"
+        verbose_name_plural = "Team members"
+        unique_together = ("team", "user")
 
     def __str__(self):
-        return f"{self.member} @ {self.team} ({self.role})"
+        return f"{self.user.get_username()} @ {self.team} ({self.role})"
 
     def has_permission(self, perm_code: str) -> bool:
         return self.is_active and self.role.has_permission(perm_code)
@@ -82,7 +69,7 @@ class TeamMembership(models.Model):
 
 class ProjectAssignment(models.Model):
     membership = models.ForeignKey(
-        TeamMembership, on_delete=models.CASCADE, related_name="project_assignments"
+        TeamMember, on_delete=models.CASCADE, related_name="project_assignments"
     )
     project = models.ForeignKey(
         "ProjectManagement.Project", on_delete=models.CASCADE, related_name="team_assignments"
@@ -97,13 +84,13 @@ class ProjectAssignment(models.Model):
 
 class TaskAssignment(models.Model):
     membership = models.ForeignKey(
-        TeamMembership, on_delete=models.CASCADE, related_name="task_assignments"
+        TeamMember, on_delete=models.CASCADE, related_name="task_assignments"
     )
     task = models.ForeignKey(
         "ProjectManagement.Task", on_delete=models.CASCADE, related_name="team_assignments"
     )
     assigned_by = models.ForeignKey(
-        TeamMember,
+        settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,

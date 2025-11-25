@@ -7,13 +7,12 @@ from django.contrib import admin
 from django.db.models import Q, QuerySet
 
 from .models import (
-	Permission,
-	Role,
-	Team,
-	TeamMember,
-	TeamMembership,
-	ProjectAssignment,
-	TaskAssignment,
+    Permission,
+    Role,
+    Team,
+    TeamMember,
+    ProjectAssignment,
+    TaskAssignment,
 )
 
 DEFAULT_ADMIN_PERMISSION_CODES: Dict[str, str] = {
@@ -26,8 +25,6 @@ DEFAULT_ADMIN_PERMISSION_CODES: Dict[str, str] = {
 	"member_view_all": "teammember_view_all",
 	"member_manage_all": "teammember_manage_all",
 	"member_manage": "teammember_manage",
-	"membership_manage_all": "membership_manage_all",
-	"membership_manage": "membership_manage",
 	"project_assign_all": "project_assign_all",
 	"project_assign": "project_assign",
 	"assign_task_all": "assign_task_all",
@@ -45,29 +42,17 @@ def _resolve_permission_code(key: Optional[str]) -> Optional[str]:
 	return PERMISSION_CODES.get(key, key)
 
 
-def _get_team_member_for_user(user) -> Optional[TeamMember]:
-	if not getattr(user, "is_authenticated", False):
-		return None
-	try:
-		return TeamMember.objects.select_related("user").get(user=user)
-	except TeamMember.DoesNotExist:
-		return None
-
-
 def _user_has_role_permission(user, code: Optional[str], team: Optional[Team] = None) -> bool:
-	if code is None:
-		return True
-	if not getattr(user, "is_authenticated", False):
-		return False
-	if getattr(user, "is_superuser", False):
-		return True
-	member = _get_team_member_for_user(user)
-	if not member:
-		return False
-	memberships = member.memberships.filter(is_active=True)
-	if team is not None:
-		memberships = memberships.filter(team=team)
-	return memberships.filter(role__permissions__code=code).exists()
+    if code is None:
+        return True
+    if not getattr(user, "is_authenticated", False):
+        return False
+    if getattr(user, "is_superuser", False):
+        return True
+    memberships = TeamMember.objects.filter(user=user, is_active=True)
+    if team is not None:
+        memberships = memberships.filter(team=team)
+    return memberships.filter(role__permissions__code=code).exists()
 
 
 def _get_owned_team_ids(user) -> Set[int]:
@@ -77,30 +62,27 @@ def _get_owned_team_ids(user) -> Set[int]:
 
 
 def _get_team_ids_for_user(user, permission_key: Optional[str] = None) -> Set[int]:
-	if not getattr(user, "is_authenticated", False):
-		return set()
-	if getattr(user, "is_superuser", False):
-		return set(Team.objects.values_list("id", flat=True))
-	team_ids = _get_owned_team_ids(user)
-	member = _get_team_member_for_user(user)
-	if not member:
-		return team_ids
-	memberships = member.memberships.filter(is_active=True)
-	code = _resolve_permission_code(permission_key)
-	if code:
-		memberships = memberships.filter(role__permissions__code=code)
-	team_ids.update(memberships.values_list("team_id", flat=True))
-	return team_ids
+    if not getattr(user, "is_authenticated", False):
+        return set()
+    if getattr(user, "is_superuser", False):
+        return set(Team.objects.values_list("id", flat=True))
+    team_ids = _get_owned_team_ids(user)
+    memberships = TeamMember.objects.filter(user=user, is_active=True)
+    code = _resolve_permission_code(permission_key)
+    if code:
+        memberships = memberships.filter(role__permissions__code=code)
+    team_ids.update(memberships.values_list("team_id", flat=True))
+    return team_ids
 
 
-def _membership_team_id(membership_obj: Optional[TeamMembership], membership_id: Optional[int]) -> Optional[int]:
-	if membership_obj is not None:
-		team_id = getattr(membership_obj, "team_id", None)
-		if team_id is not None:
-			return team_id
-	if membership_id is None:
-		return None
-	return TeamMembership.objects.filter(pk=membership_id).values_list("team_id", flat=True).first()
+def _membership_team_id(membership_obj: Optional[TeamMember], membership_id: Optional[int]) -> Optional[int]:
+    if membership_obj is not None:
+        team_id = getattr(membership_obj, "team_id", None)
+        if team_id is not None:
+            return team_id
+    if membership_id is None:
+        return None
+    return TeamMember.objects.filter(pk=membership_id).values_list("team_id", flat=True).first()
 
 
 class RoleProtectedAdmin(admin.ModelAdmin):
@@ -314,101 +296,70 @@ class TeamAdmin(TeamScopedAdmin):
 
 @admin.register(TeamMember)
 class TeamMemberAdmin(TeamScopedAdmin):
-	module_permission_key = "member_view_all"
-	view_permission_key = "member_view_all"
-	add_permission_key = "member_manage_all"
-	change_permission_key = "member_manage_all"
-	delete_permission_key = "member_manage_all"
-	team_permission_key = "member_manage"
+    module_permission_key = "member_view_all"
+    view_permission_key = "member_view_all"
+    add_permission_key = "member_manage_all"
+    change_permission_key = "member_manage_all"
+    delete_permission_key = "member_manage_all"
+    team_permission_key = "member_manage"
 
-	list_display = ("user", "title", "phone")
-	search_fields = (
-		"user__username",
-		"user__first_name",
-		"user__last_name",
-		"title",
-		"phone",
-	)
-	list_filter = ("memberships__team",)
+    list_display = ("team", "user", "role", "is_active", "joined_at")
+    list_filter = ("team", "role", "is_active")
+    search_fields = (
+        "team__name",
+        "user__username",
+        "user__first_name",
+        "user__last_name",
+        "role__name",
+    )
+    readonly_fields = ("joined_at",)
 
-	def get_object_team_ids(self, obj) -> Set[int]:
-		team_ids: Set[int] = set(obj.memberships.values_list("team_id", flat=True))
-		team_ids.update(obj.user.owned_teams.values_list("id", flat=True))
-		return team_ids
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "team" and not getattr(request.user, "is_superuser", False):
+            allowed_ids = _get_team_ids_for_user(request.user, self.team_permission_key)
+            kwargs["queryset"] = Team.objects.filter(id__in=list(allowed_ids)) if allowed_ids else Team.objects.none()
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
-	def _filter_queryset_by_team_ids(self, qs: QuerySet, team_ids: Iterable[int]) -> QuerySet:
-		return qs.filter(
-			Q(memberships__team_id__in=list(team_ids))
-			| Q(user__owned_teams__id__in=list(team_ids))
-		).distinct()
+    def get_object_team_ids(self, obj) -> Set[int]:
+        if obj.team_id is None:
+            return set()
+        return {obj.team_id}
 
-
-@admin.register(TeamMembership)
-class TeamMembershipAdmin(TeamScopedAdmin):
-	module_permission_key = "membership_manage_all"
-	view_permission_key = "membership_manage_all"
-	add_permission_key = "membership_manage_all"
-	change_permission_key = "membership_manage_all"
-	delete_permission_key = "membership_manage_all"
-	team_permission_key = "membership_manage"
-
-	list_display = ("team", "member", "role", "is_active", "joined_at")
-	list_filter = ("team", "role", "is_active")
-	search_fields = (
-		"team__name",
-		"member__user__username",
-		"member__user__first_name",
-		"member__user__last_name",
-		"role__name",
-	)
-	readonly_fields = ("joined_at",)
-
-	def formfield_for_foreignkey(self, db_field, request, **kwargs):
-		if db_field.name == "team" and not getattr(request.user, "is_superuser", False):
-			allowed_ids = _get_team_ids_for_user(request.user, self.team_permission_key)
-			kwargs["queryset"] = Team.objects.filter(id__in=list(allowed_ids)) if allowed_ids else Team.objects.none()
-		return super().formfield_for_foreignkey(db_field, request, **kwargs)
-
-	def get_object_team_ids(self, obj) -> Set[int]:
-		if obj.team_id is None:
-			return set()
-		return {obj.team_id}
-
-	def _filter_queryset_by_team_ids(self, qs: QuerySet, team_ids: Iterable[int]) -> QuerySet:
-		return qs.filter(team_id__in=list(team_ids))
+    def _filter_queryset_by_team_ids(self, qs: QuerySet, team_ids: Iterable[int]) -> QuerySet:
+        return qs.filter(team_id__in=list(team_ids))
 
 
 @admin.register(ProjectAssignment)
 class ProjectAssignmentAdmin(TeamScopedAdmin):
-	add_permission_key = "project_assign_all"
-	change_permission_key = "project_assign_all"
-	delete_permission_key = "project_assign_all"
-	team_permission_key = "project_assign"
+    add_permission_key = "project_assign_all"
+    change_permission_key = "project_assign_all"
+    delete_permission_key = "project_assign_all"
+    team_permission_key = "project_assign"
 
-	list_display = ("membership", "project", "assigned_at")
-	list_filter = ("membership__team",)
-	search_fields = (
-		"membership__team__name",
-		"membership__member__user__username",
-		"project__id",
-	)
-	readonly_fields = ("assigned_at",)
+    list_display = ("membership", "project", "assigned_at")
+    list_filter = ("membership__team",)
+    search_fields = (
+        "membership__team__name",
+        "membership__user__username",
+        "project__id",
+    )
+    readonly_fields = ("assigned_at",)
 
-	def formfield_for_foreignkey(self, db_field, request, **kwargs):
-		if db_field.name == "membership" and not getattr(request.user, "is_superuser", False):
-			allowed_ids = _get_team_ids_for_user(request.user, self.team_permission_key)
-			kwargs["queryset"] = TeamMembership.objects.filter(team_id__in=list(allowed_ids), is_active=True) if allowed_ids else TeamMembership.objects.none()
-		return super().formfield_for_foreignkey(db_field, request, **kwargs)
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "membership" and not getattr(request.user, "is_superuser", False):
+            allowed_ids = _get_team_ids_for_user(request.user, self.team_permission_key)
+            kwargs["queryset"] = TeamMember.objects.filter(team_id__in=list(allowed_ids), is_active=True) if allowed_ids else TeamMember.objects.none()
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
-	def get_object_team_ids(self, obj) -> Set[int]:
-		membership = getattr(obj, "membership", None)
-		team_id = _membership_team_id(membership, getattr(obj, "membership_id", None))
-		if team_id is None:
-			return set()
-		return {team_id}
+    def get_object_team_ids(self, obj) -> Set[int]:
+        membership = getattr(obj, "membership", None)
+        team_id = _membership_team_id(membership, getattr(obj, "membership_id", None))
+        if team_id is None:
+            return set()
+        return {team_id}
 
-	def _filter_queryset_by_team_ids(self, qs: QuerySet, team_ids: Iterable[int]) -> QuerySet:
-		return qs.filter(membership__team_id__in=list(team_ids))
+    def _filter_queryset_by_team_ids(self, qs: QuerySet, team_ids: Iterable[int]) -> QuerySet:
+        return qs.filter(membership__team_id__in=list(team_ids))
 
 
 @admin.register(TaskAssignment)
@@ -422,7 +373,7 @@ class TaskAssignmentAdmin(TeamScopedAdmin):
 	list_filter = ("membership__team",)
 	search_fields = (
 		"membership__team__name",
-		"membership__member__user__username",
+		"membership__user__username",
 		"task__id",
 	)
 	readonly_fields = ("assigned_at",)
@@ -431,16 +382,10 @@ class TaskAssignmentAdmin(TeamScopedAdmin):
 		is_superuser = getattr(request.user, "is_superuser", False)
 		if db_field.name == "membership" and not is_superuser:
 			allowed_ids = _get_team_ids_for_user(request.user, self.team_permission_key)
-			kwargs["queryset"] = TeamMembership.objects.filter(team_id__in=list(allowed_ids), is_active=True) if allowed_ids else TeamMembership.objects.none()
+			kwargs["queryset"] = TeamMember.objects.filter(team_id__in=list(allowed_ids), is_active=True) if allowed_ids else TeamMember.objects.none()
 		if db_field.name == "assigned_by" and not is_superuser:
-			allowed_ids = _get_team_ids_for_user(request.user, self.team_permission_key)
-			if allowed_ids:
-				kwargs["queryset"] = TeamMember.objects.filter(
-					memberships__team_id__in=list(allowed_ids),
-					memberships__is_active=True,
-				).distinct()
-			else:
-				kwargs["queryset"] = TeamMember.objects.none()
+			kwargs["queryset"] = type(request.user).objects.filter(pk=request.user.pk)
+			kwargs["initial"] = request.user.pk
 		return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 	def get_object_team_ids(self, obj) -> Set[int]:
