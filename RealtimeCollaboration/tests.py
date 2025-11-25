@@ -102,7 +102,7 @@ class SessionManagerTestCase(TestCase):
         self.assertEqual(len(structure['folders']), 0)
         self.assertEqual(len(structure['files']), 0)
         
-        # 添加文件夹
+        # Add folder
         structure['folders'].append({
             'id': 'f1',
             'name': 'src',
