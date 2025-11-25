@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <h1 class="mb-4">{{ title }}</h1>
+
+            <form method="post">
+                {% csrf_token %}
+
+                {% for field in form %}
+                <div class="form-group mb-3">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    <div class="{% if field.errors %}is-invalid{% endif %}">
+                        {{ field }}
+                    </div>
+                    {% if field.errors %}
+                        <div class="invalid-feedback">
+                            {{ field.errors }}
+                        </div>
+                    {% endif %}
+                    {% if field.help_text %}
+                        <small class="form-text text-muted">{{ field.help_text }}</small>
+                    {% endif %}
+                </div>
+                {% endfor %}
+
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary">保存</button>
+                    <a href="{% url 'projectmanagement:project_list' %}" class="btn btn-secondary">取消</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* 美化多选框样式 */
+    select[multiple] {
+        height: 150px !important;
+    }
+
+    /* 统一表单控件样式 */
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        width: 100%;
+        padding: 0.375rem 0.75rem;
+        font-size: 1rem;
+        line-height: 1.5;
+        border: 1px solid #ced4da;
+        border-radius: 0.25rem;
+    }
+</style>
+{% endblock %}
