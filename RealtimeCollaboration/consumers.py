@@ -118,7 +118,7 @@ class CollaborationConsumer(AsyncWebsocketConsumer):
                 self.group_name,
                 {
                     'type': 'yjs_update',
-                    'update': encoded_update,  # 传递 base64 编码的字符串
+                    'update': encoded_update,  # Pass base64-encoded string
                     'sender': self.member_id,
                     'timestamp': datetime.now().isoformat()
                 }
