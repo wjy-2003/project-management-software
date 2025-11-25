@@ -1,8 +1,8 @@
 # from django.shortcuts import render
 
 """
-REST API 视图
-提供会话管理的 HTTP 接口
+REST API views
+Provide HTTP interfaces for session management
 """
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -15,13 +15,13 @@ from .session_manager import session_manager
 @require_http_methods(["POST"])
 def create_session(request):
     """
-    创建新的协作会话
-    
+    Create a new collaboration session
+
     POST /api/collaboration/sessions/create/
     Body: {
         "initiator": "user_id"
     }
-    
+
     Returns: {
         "success": true,
         "session_id": "uuid",
@@ -61,10 +61,10 @@ def create_session(request):
 @require_http_methods(["GET"])
 def get_session(request, session_id):
     """
-    获取会话信息
-    
+    Retrieve session information
+
     GET /api/collaboration/sessions/<session_id>/
-    
+
     Returns: {
         "success": true,
         "session": {
@@ -109,14 +109,14 @@ def get_session(request, session_id):
 @require_http_methods(["POST"])
 def join_session(request, session_id):
     """
-    加入协作会话
-    
+    Join a collaboration session
+
     POST /api/collaboration/sessions/<session_id>/join/
     Body: {
         "member_id": "user_id",
-        "role": "editor"  // 可选: "editor" 或 "viewer"，默认 "viewer"
+        "role": "editor"  # Optional: "editor" or "viewer", default "viewer"
     }
-    
+
     Returns: {
         "success": true,
         "message": "Joined session successfully"
@@ -174,13 +174,13 @@ def join_session(request, session_id):
 @require_http_methods(["POST"])
 def leave_session(request, session_id):
     """
-    离开协作会话
-    
+    Leave a collaboration session
+
     POST /api/collaboration/sessions/<session_id>/leave/
     Body: {
         "member_id": "user_id"
     }
-    
+
     Returns: {
         "success": true,
         "message": "Left session successfully",
@@ -221,15 +221,15 @@ def leave_session(request, session_id):
 @require_http_methods(["POST"])
 def update_permission(request, session_id):
     """
-    更新成员权限（仅发起者可调用）
-    
+    Update a member's permission (only callable by the initiator)
+
     POST /api/collaboration/sessions/<session_id>/permissions/
     Body: {
         "initiator_id": "user_id",
         "member_id": "target_user_id",
-        "role": "editor"  // "editor" 或 "viewer"
+        "role": "editor"  # "editor" or "viewer"
     }
-    
+
     Returns: {
         "success": true,
         "message": "Permission updated successfully"
@@ -253,7 +253,7 @@ def update_permission(request, session_id):
                 'message': 'Invalid role. Must be "editor" or "viewer"'
             }, status=400)
         
-        # 验证是否为发起者
+        # Verify that the caller is the initiator
         if not session_manager.is_initiator(session_id, initiator_id):
             return JsonResponse({
                 'success': False,
@@ -290,10 +290,10 @@ def update_permission(request, session_id):
 @require_http_methods(["GET"])
 def list_members(request, session_id):
     """
-    获取会话成员列表
-    
+    Get the list of members in a session
+
     GET /api/collaboration/sessions/<session_id>/members/
-    
+
     Returns: {
         "success": true,
         "members": [
@@ -330,10 +330,10 @@ def list_members(request, session_id):
 @require_http_methods(["GET"])
 def get_structure(request, session_id):
     """
-    获取文件夹结构
-    
+    Retrieve folder/file structure for a session
+
     GET /api/collaboration/sessions/<session_id>/structure/
-    
+
     Returns: {
         "success": true,
         "structure": {
@@ -366,10 +366,10 @@ def get_structure(request, session_id):
 @require_http_methods(["GET"])
 def session_stats(request):
     """
-    获取会话统计信息
-    
+    Get session statistics
+
     GET /api/collaboration/stats/
-    
+
     Returns: {
         "success": true,
         "active_sessions": 5

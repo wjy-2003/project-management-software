@@ -1,11 +1,11 @@
 """
-简单的测试客户端示例
-演示如何使用实时协作 API 和 WebSocket
+Simple test client example
+Demonstrates how to use the real-time collaboration API and WebSocket
 
-依赖安装:
+Dependencies:
     pip install requests websocket-client
 
-使用方法:
+Usage:
     python test_client.py
 """
 import requests
@@ -16,7 +16,7 @@ from threading import Thread
 
 
 class CollaborationClient:
-    """协作客户端封装类"""
+    """Collaboration client wrapper"""
     
     def __init__(self, base_url="http://localhost:8000", ws_base_url="ws://localhost:8000"):
         self.base_url = base_url
@@ -26,7 +26,7 @@ class CollaborationClient:
         self.ws = None
         
     def create_session(self, initiator_id):
-        """创建新会话"""
+        """Create a new session"""
         response = requests.post(
             f"{self.base_url}/api/collaboration/sessions/create/",
             json={"initiator": initiator_id}
@@ -42,7 +42,7 @@ class CollaborationClient:
             return None
     
     def join_session(self, session_id, member_id, role="viewer"):
-        """加入现有会话"""
+        """Join an existing session"""
         response = requests.post(
             f"{self.base_url}/api/collaboration/sessions/{session_id}/join/",
             json={"member_id": member_id, "role": role}
@@ -58,7 +58,7 @@ class CollaborationClient:
             return False
     
     def get_session_info(self):
-        """获取会话信息"""
+        """Get session information"""
         response = requests.get(
             f"{self.base_url}/api/collaboration/sessions/{self.session_id}/"
         )
@@ -75,7 +75,7 @@ class CollaborationClient:
             return None
     
     def connect_websocket(self):
-        """连接到 WebSocket"""
+        """Connect to the WebSocket"""
         if not self.session_id or not self.member_id:
             print("✗ 请先创建或加入会话")
             return False
@@ -98,7 +98,7 @@ class CollaborationClient:
             return False
     
     def create_folder(self, folder_id, folder_name, parent_id=None):
-        """创建文件夹"""
+        """Create a folder"""
         if not self.ws:
             print("✗ WebSocket 未连接")
             return False
@@ -116,7 +116,7 @@ class CollaborationClient:
         return True
     
     def create_file(self, file_id, file_name, parent_id=None, file_type="text"):
-        """创建文件"""
+        """Create a file"""
         if not self.ws:
             print("✗ WebSocket 未连接")
             return False
@@ -135,7 +135,7 @@ class CollaborationClient:
         return True
     
     def listen_messages(self, callback=None):
-        """监听 WebSocket 消息"""
+        """Listen for WebSocket messages"""
         if not self.ws:
             print("✗ WebSocket 未连接")
             return
@@ -157,7 +157,7 @@ class CollaborationClient:
             print("\n停止监听")
     
     def _default_message_handler(self, message):
-        """默认消息处理器"""
+        """Default message handler"""
         msg_type = message['type']
         
         if msg_type == 'structure_changed':
@@ -178,28 +178,28 @@ class CollaborationClient:
             print(f"  错误: {message['message']}")
     
     def close(self):
-        """关闭连接"""
+        """Close the connection"""
         if self.ws:
             self.ws.close()
             print("✓ WebSocket 已断开")
 
 
 def demo_basic_usage():
-    """基本使用示例"""
+    """Basic usage example"""
     print("=== 基本使用示例 ===\n")
     
-    # 创建发起者客户端
+    # Create initiator client
     client1 = CollaborationClient()
     session_id = client1.create_session("alice")
     
     if not session_id:
         return
     
-    # 连接 WebSocket
+    # Connect to WebSocket
     if not client1.connect_websocket():
         return
     
-    # 创建文件夹结构
+    # Create folder structure
     client1.create_folder("f1", "src")
     time.sleep(0.5)
     
@@ -209,10 +209,10 @@ def demo_basic_usage():
     client1.create_file("file1", "main.py", parent_id="f1", file_type="python")
     time.sleep(0.5)
     
-    # 获取会话信息
+    # Get session information
     client1.get_session_info()
     
-    # 监听消息（阻塞）
+    # Listen for messages (blocking)
     print("\n开始监听消息（按 Ctrl+C 停止）...")
     try:
         client1.listen_messages()
@@ -223,25 +223,25 @@ def demo_basic_usage():
 
 
 def demo_multi_client():
-    """多客户端协作示例"""
+    """Multi-client collaboration example"""
     print("=== 多客户端协作示例 ===\n")
     
-    # 客户端 1: 发起者
+    # Client 1: initiator
     client1 = CollaborationClient()
     session_id = client1.create_session("alice")
     
     if not session_id:
         return
     
-    # 客户端 2: 编辑者
+    # Client 2: editor
     client2 = CollaborationClient()
     client2.join_session(session_id, "bob", role="editor")
     
-    # 客户端 3: 只读
+    # Client 3: viewer (read-only)
     client3 = CollaborationClient()
     client3.join_session(session_id, "charlie", role="viewer")
     
-    # 连接所有客户端
+    # Connect all clients
     if not all([
         client1.connect_websocket(),
         client2.connect_websocket(),
@@ -249,22 +249,22 @@ def demo_multi_client():
     ]):
         return
     
-    # 客户端 1 创建文件夹
+    # Client 1 creates a folder
     print("\n--- Alice 创建文件夹 ---")
     client1.create_folder("f1", "project")
     time.sleep(1)
     
-    # 客户端 2 创建文件
+    # Client 2 creates a file
     print("\n--- Bob 创建文件 ---")
     client2.create_file("file1", "README.md", parent_id="f1", file_type="markdown")
     time.sleep(1)
     
-    # 客户端 3 尝试创建文件（应该失败，因为是只读）
+    # Client 3 attempts to create a file (should fail, viewer role)
     print("\n--- Charlie 尝试创建文件（只读） ---")
     client3.create_file("file2", "test.txt", parent_id="f1")
     time.sleep(1)
     
-    # 查看最终会话状态
+    # Check final session state
     print("\n--- 最终会话状态 ---")
     client1.get_session_info()
     

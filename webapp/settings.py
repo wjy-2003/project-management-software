@@ -32,7 +32,7 @@ ALLOWED_HOSTS = ["localhost", "0.0.0.0", "127.0.0.1", "*"]
 # Application definition
 
 INSTALLED_APPS = [
-    "daphne",  # Channels ASGI server (必须在最前面)
+    "daphne",  # Channels ASGI server 
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -77,16 +77,9 @@ TEMPLATES = [
 WSGI_APPLICATION = "webapp.wsgi.application"
 ASGI_APPLICATION = "webapp.asgi.application"
 
-# Channels 配置
 CHANNEL_LAYERS = {
     "default": {
-        # 使用内存通道层（开发环境）
         "BACKEND": "channels.layers.InMemoryChannelLayer"
-        # 生产环境可以使用 Redis:
-        # "BACKEND": "channels_redis.core.RedisChannelLayer",
-        # "CONFIG": {
-        #     "hosts": [("127.0.0.1", 6379)],
-        # },
     },
 }
 

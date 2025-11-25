@@ -1,6 +1,6 @@
 """
 Django Channels WebSocket Consumer
-处理实时协作的 WebSocket 连接和消息
+Handle WebSocket connections and messages for real-time collaboration
 """
 import json
 import base64
@@ -14,18 +14,18 @@ from .session_manager import session_manager
 
 class CollaborationConsumer(AsyncWebsocketConsumer):
     """
-    实时协作 WebSocket Consumer
-    处理会话加入、消息广播、结构变更等功能
+    Real-time collaborative WebSocket Consumer
+
+    Handles functions such as session joining, message broadcasting, and structural changes.
     """
 
     async def connect(self):
-        """处理 WebSocket 连接"""
-        # 从 URL 路径获取会话 ID 和成员 ID
+        """Handle WebSocket connection"""
         self.session_id = self.scope['url_route']['kwargs']['session_id']
         self.member_id = self.scope['url_route']['kwargs']['member_id']
         self.group_name = f'collab_{self.session_id}'
 
-        # 验证会话是否存在
+        # validation
         session_exists = await sync_to_async(session_manager.session_exists)(
             self.session_id
         )
@@ -34,23 +34,23 @@ class CollaborationConsumer(AsyncWebsocketConsumer):
             await self.close(code=4004)
             return
 
-        # 加入频道组
+        # join a channel group
         await self.channel_layer.group_add(
             self.group_name,
             self.channel_name
         )
 
-        # 更新成员的通道名称
+        # update the member_channel
         await sync_to_async(session_manager.update_member_channel)(
             self.session_id,
             self.member_id,
             self.channel_name
         )
 
-        # 接受 WebSocket 连接
+        # accept
         await self.accept()
 
-        # 获取当前会话信息并发送给新连接的成员
+        # update info to members
         session = await sync_to_async(session_manager.get_session)(
             self.session_id
         )
@@ -69,7 +69,7 @@ class CollaborationConsumer(AsyncWebsocketConsumer):
                 'timestamp': datetime.now().isoformat()
             }))
 
-        # 通知其他成员有新成员加入
+        # Notify other members that a new member has joined
         await self.channel_layer.group_send(
             self.group_name,
             {
@@ -80,13 +80,12 @@ class CollaborationConsumer(AsyncWebsocketConsumer):
         )
 
     async def disconnect(self, close_code):
-        """处理 WebSocket 断开连接"""
-        # 从会话中移除成员
+        """Handle WebSocket disconnection"""
         session_destroyed = await sync_to_async(
             session_manager.remove_member
         )(self.session_id, self.member_id)
 
-        # 通知其他成员有成员离开
+        # Notify other members that a member has left
         if not session_destroyed:
             await self.channel_layer.group_send(
                 self.group_name,
@@ -97,7 +96,7 @@ class CollaborationConsumer(AsyncWebsocketConsumer):
                 }
             )
 
-        # 离开频道组
+        # Leave the channel group
         await self.channel_layer.group_discard(
             self.group_name,
             self.channel_name
@@ -105,15 +104,15 @@ class CollaborationConsumer(AsyncWebsocketConsumer):
 
     async def receive(self, text_data=None, bytes_data=None):
         """
-        接收来自 WebSocket 的消息
-        支持两种模式：
-        1. Yjs 二进制更新（bytes_data）- 直接广播给其他成员
-        2. JSON 文本消息（text_data）- 用于结构变更、权限管理等
+        Receive messages from the WebSocket.
+        Supports two modes:
+        1. Yjs binary updates (bytes_data) - forward to other members
+        2. JSON text messages (text_data) - used for structure changes, permissions, etc.
         """
-        # 优先处理 Yjs 二进制更新（通常是 Yjs 的 CRDT 更新）
+        # Prioritize Yjs binary updates (usually Yjs CRDT updates)
         if bytes_data is not None:
-            # Yjs 发送的是纯二进制数据
-            # 注意：Channel Layer 不能直接传递 bytes，需要编码为 base64
+            # Yjs sends raw binary data
+            # Note: Channel Layer cannot transmit bytes directly; encode as base64
             encoded_update = base64.b64encode(bytes_data).decode('utf-8')
             await self.channel_layer.group_send(
                 self.group_name,
@@ -126,7 +125,7 @@ class CollaborationConsumer(AsyncWebsocketConsumer):
             )
             return
         
-        # 处理 JSON 文本消息
+        # Handle JSON text messages
         if text_data is None:
             return
         
@@ -162,21 +161,20 @@ class CollaborationConsumer(AsyncWebsocketConsumer):
 
     async def handle_structure_change(self, data):
         """
-        处理文件夹结构变更请求
-        非发起者的变更需要发起者验证
+        Handle requests to change folder/file structure.
+        Changes from non-initiators must be approved by the initiator.
         """
-        # 检查是否为发起者
+        # Check if the member is the initiator
         is_initiator = await sync_to_async(
             session_manager.is_initiator
         )(self.session_id, self.member_id)
 
-        # 检查是否有编辑权限
+        # Check if the member has edit permission
         can_edit = await sync_to_async(
             session_manager.can_edit
         )(self.session_id, self.member_id)
 
         if not can_edit:
-            # 只读成员无权修改
             await self.send(text_data=json.dumps({
                 'type': 'error',
                 'message': 'Permission denied: viewer role cannot edit structure',
@@ -185,7 +183,7 @@ class CollaborationConsumer(AsyncWebsocketConsumer):
             return
 
         if not is_initiator:
-            # 非发起者需要发送请求给发起者验证
+            # Non-initiators must send a request to the initiator for approval
             session = await sync_to_async(
                 session_manager.get_session
             )(self.session_id)
@@ -198,7 +196,7 @@ class CollaborationConsumer(AsyncWebsocketConsumer):
                 }))
                 return
 
-            # 发送变更请求给发起者
+            # Send the change request to the initiator
             await self.channel_layer.group_send(
                 self.group_name,
                 {
@@ -210,17 +208,17 @@ class CollaborationConsumer(AsyncWebsocketConsumer):
                 }
             )
         else:
-            # 发起者直接应用变更
+            # Initiator applies the change directly
             await self.apply_structure_change(data)
 
     async def apply_structure_change(self, data):
         """
-        应用结构变更（仅发起者调用）
+        Apply a structure change (called only by the initiator).
         """
         operation = data.get('operation')
         payload = data.get('payload')
 
-        # 获取当前结构
+        # Get the current structure
         structure = await sync_to_async(
             session_manager.get_structure
         )(self.session_id)
@@ -233,7 +231,7 @@ class CollaborationConsumer(AsyncWebsocketConsumer):
             }))
             return
 
-        # 根据操作类型修改结构
+        # Modify the structure according to the operation type
         try:
             if operation == 'create_folder':
                 structure['folders'].append({
@@ -286,13 +284,13 @@ class CollaborationConsumer(AsyncWebsocketConsumer):
                 }))
                 return
 
-            # 更新结构
+            # Update the structure
             await sync_to_async(session_manager.update_structure)(
                 self.session_id,
                 structure
             )
 
-            # 广播变更给所有成员
+            # Broadcast the change to all members
             await self.channel_layer.group_send(
                 self.group_name,
                 {
@@ -313,8 +311,8 @@ class CollaborationConsumer(AsyncWebsocketConsumer):
 
     async def handle_content_collaboration(self, data):
         """
-        处理文件内容协作消息（如 Yjs 指令）
-        直接广播给所有成员，无需验证
+        Handle file content collaboration messages (e.g., Yjs instructions).
+        Broadcast directly to all members without verification.
         """
         await self.channel_layer.group_send(
             self.group_name,
@@ -329,9 +327,9 @@ class CollaborationConsumer(AsyncWebsocketConsumer):
 
     async def handle_permission_change(self, data):
         """
-        处理权限变更（仅发起者可调用）
+        Handle permission changes (only the initiator may call this).
         """
-        # 验证是否为发起者
+        # Verify if the member is the initiator
         is_initiator = await sync_to_async(
             session_manager.is_initiator
         )(self.session_id, self.member_id)
@@ -355,13 +353,13 @@ class CollaborationConsumer(AsyncWebsocketConsumer):
             }))
             return
 
-        # 更新权限
+        # Update member role/permission
         success = await sync_to_async(
             session_manager.update_member_role
         )(self.session_id, target_member, new_role)
 
         if success:
-            # 广播权限变更
+            # Broadcast the permission change
             await self.channel_layer.group_send(
                 self.group_name,
                 {
@@ -379,10 +377,9 @@ class CollaborationConsumer(AsyncWebsocketConsumer):
                 'timestamp': datetime.now().isoformat()
             }))
 
-    # 以下是频道层消息处理方法
 
     async def member_joined(self, event):
-        """通知成员加入"""
+        """Notify that a member has joined"""
         if event['member_id'] != self.member_id:
             await self.send(text_data=json.dumps({
                 'type': 'member_joined',
@@ -391,7 +388,7 @@ class CollaborationConsumer(AsyncWebsocketConsumer):
             }))
 
     async def member_left(self, event):
-        """通知成员离开"""
+        """Notify that a member has left"""
         await self.send(text_data=json.dumps({
             'type': 'member_left',
             'member_id': event['member_id'],
@@ -399,7 +396,7 @@ class CollaborationConsumer(AsyncWebsocketConsumer):
         }))
 
     async def structure_change_request(self, event):
-        """转发结构变更请求（仅发给发起者）"""
+        """Forward structure change request (only to the initiator)"""
         is_initiator = await sync_to_async(
             session_manager.is_initiator
         )(self.session_id, self.member_id)
@@ -414,7 +411,7 @@ class CollaborationConsumer(AsyncWebsocketConsumer):
             }))
 
     async def structure_changed(self, event):
-        """广播结构变更"""
+        """Broadcast structure changes"""
         await self.send(text_data=json.dumps({
             'type': 'structure_changed',
             'operation': event['operation'],
@@ -424,8 +421,8 @@ class CollaborationConsumer(AsyncWebsocketConsumer):
         }))
 
     async def content_update(self, event):
-        """广播内容更新"""
-        # 不发送给自己
+        """Broadcast content updates"""
+        # Do not send updates to the sender
         if event['sender'] != self.member_id:
             await self.send(text_data=json.dumps({
                 'type': 'content_update',
@@ -436,7 +433,7 @@ class CollaborationConsumer(AsyncWebsocketConsumer):
             }))
 
     async def permission_updated(self, event):
-        """广播权限更新"""
+        """Broadcast permission updates"""
         await self.send(text_data=json.dumps({
             'type': 'permission_updated',
             'member_id': event['member_id'],
@@ -447,14 +444,14 @@ class CollaborationConsumer(AsyncWebsocketConsumer):
 
     async def yjs_update(self, event):
         """
-        广播 Yjs 二进制更新
-        将 Yjs CRDT 更新直接转发给其他成员（不发送给自己）
+        Broadcast Yjs binary updates.
+        Forward Yjs CRDT updates directly to other members (do not send back to sender).
         """
-        # 不发送给自己
+        # Do not send to the sender
         if event['sender'] != self.member_id:
             encoded_update = event.get('update')
             if encoded_update:
-                # 将 base64 字符串解码回二进制数据
+                # Decode the base64 string back to binary data
                 binary_update = base64.b64decode(encoded_update)
-                # 发送二进制数据给客户端
+                # Send binary data to the client
                 await self.send(bytes_data=binary_update)

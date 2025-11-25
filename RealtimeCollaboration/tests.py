@@ -1,22 +1,22 @@
 # from django.test import TestCase
 
 """
-单元测试
+Unit tests
 """
 from django.test import TestCase
 from .session_manager import session_manager
 
 
 class SessionManagerTestCase(TestCase):
-    """会话管理器测试"""
+    """Session manager tests"""
     
     def setUp(self):
-        """测试前清理会话"""
-        # 清空所有会话（仅用于测试）
+        """Clean up sessions before each test"""
+        # Clear all sessions (for testing only)
         session_manager.active_sessions.clear()
     
     def test_create_session(self):
-        """测试创建会话"""
+        """Test creating a session"""
         session_id = session_manager.create_session("alice")
         
         self.assertIsNotNone(session_id)
@@ -27,23 +27,23 @@ class SessionManagerTestCase(TestCase):
         self.assertIn("alice", session['members'])
     
     def test_add_member(self):
-        """测试添加成员"""
+        """Test adding a member"""
         session_id = session_manager.create_session("alice")
         
-        # 添加编辑者
+        # test add editor
         success = session_manager.add_member(session_id, "bob", role="editor")
         self.assertTrue(success)
         
-        # 验证成员已添加
+        # validation join members
         members = session_manager.get_all_members(session_id)
         self.assertEqual(len(members), 2)
         
-        # 检查角色
+        # check rules
         role = session_manager.get_member_role(session_id, "bob")
         self.assertEqual(role, "editor")
     
     def test_remove_member(self):
-        """测试移除成员"""
+        """Test removing a member"""
         session_id = session_manager.create_session("alice")
         session_manager.add_member(session_id, "bob", role="editor")
         
@@ -55,7 +55,7 @@ class SessionManagerTestCase(TestCase):
         self.assertEqual(len(members), 1)
     
     def test_session_destroyed_when_empty(self):
-        """测试会话在最后一个成员离开时销毁"""
+        """Test session is destroyed when last member leaves"""
         session_id = session_manager.create_session("alice")
         
         # 移除唯一的成员
@@ -66,7 +66,7 @@ class SessionManagerTestCase(TestCase):
         self.assertFalse(session_manager.session_exists(session_id))
     
     def test_permission_check(self):
-        """测试权限检查"""
+        """Test permission checks"""
         session_id = session_manager.create_session("alice")
         session_manager.add_member(session_id, "bob", role="editor")
         session_manager.add_member(session_id, "charlie", role="viewer")
@@ -81,7 +81,7 @@ class SessionManagerTestCase(TestCase):
         self.assertFalse(session_manager.is_initiator(session_id, "bob"))
     
     def test_update_member_role(self):
-        """测试更新成员角色"""
+        """Test updating a member's role"""
         session_id = session_manager.create_session("alice")
         session_manager.add_member(session_id, "bob", role="viewer")
         
@@ -94,7 +94,7 @@ class SessionManagerTestCase(TestCase):
         self.assertEqual(role, "editor")
     
     def test_cannot_update_initiator_role(self):
-        """测试不能更新发起者角色"""
+        """Test initiator role cannot be changed"""
         session_id = session_manager.create_session("alice")
         
         # 尝试更新发起者角色应该失败
@@ -102,7 +102,7 @@ class SessionManagerTestCase(TestCase):
         self.assertFalse(success)
     
     def test_structure_operations(self):
-        """测试文件夹结构操作"""
+        """Test folder/file structure operations"""
         session_id = session_manager.create_session("alice")
         
         # 获取初始结构
@@ -127,7 +127,7 @@ class SessionManagerTestCase(TestCase):
         self.assertEqual(updated_structure['folders'][0]['name'], 'src')
     
     def test_multiple_sessions(self):
-        """测试多个会话"""
+        """Test multiple sessions"""
         session_id1 = session_manager.create_session("alice")
         session_id2 = session_manager.create_session("bob")
         
@@ -143,14 +143,14 @@ class SessionManagerTestCase(TestCase):
 
 
 class CollaborationAPITestCase(TestCase):
-    """REST API 测试"""
+    """REST API tests"""
     
     def setUp(self):
-        """测试前清理"""
+        """Clean up before tests"""
         session_manager.active_sessions.clear()
     
     def test_create_session_api(self):
-        """测试创建会话 API"""
+        """Test create session API"""
         response = self.client.post(
             '/api/collaboration/sessions/create/',
             data={'initiator': 'alice'},
@@ -163,7 +163,7 @@ class CollaborationAPITestCase(TestCase):
         self.assertIn('session_id', data)
     
     def test_get_session_api(self):
-        """测试获取会话 API"""
+        """Test get session API"""
         # 先创建会话
         session_id = session_manager.create_session("alice")
         
@@ -177,7 +177,7 @@ class CollaborationAPITestCase(TestCase):
         self.assertEqual(data['session']['initiator'], 'alice')
     
     def test_join_session_api(self):
-        """测试加入会话 API"""
+        """Test join session API"""
         session_id = session_manager.create_session("alice")
         
         response = self.client.post(
@@ -195,7 +195,7 @@ class CollaborationAPITestCase(TestCase):
         self.assertEqual(len(members), 2)
     
     def test_update_permission_api(self):
-        """测试更新权限 API"""
+        """Test update permission API"""
         session_id = session_manager.create_session("alice")
         session_manager.add_member(session_id, "bob", role="viewer")
         
@@ -218,7 +218,7 @@ class CollaborationAPITestCase(TestCase):
         self.assertEqual(role, 'editor')
     
     def test_permission_denied_for_non_initiator(self):
-        """测试非发起者无法修改权限"""
+        """Test non-initiator cannot change permissions"""
         session_id = session_manager.create_session("alice")
         session_manager.add_member(session_id, "bob", role="editor")
         session_manager.add_member(session_id, "charlie", role="viewer")
@@ -239,7 +239,7 @@ class CollaborationAPITestCase(TestCase):
         self.assertFalse(data['success'])
     
     def test_session_stats_api(self):
-        """测试统计信息 API"""
+        """Test session stats API"""
         session_manager.create_session("alice")
         session_manager.create_session("bob")
         

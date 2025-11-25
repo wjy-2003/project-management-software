@@ -1,6 +1,6 @@
 """
-内存中的会话管理器
-负责管理所有临时协作会话的状态，不使用数据库
+In-memory session manager
+Manages temporary collaborative sessions in memory (no database)
 """
 import uuid
 import threading
@@ -10,8 +10,8 @@ from typing import Dict, Optional, List
 
 class SessionManager:
     """
-    单例模式的会话管理器
-    使用线程锁保证并发安全
+    Singleton session manager
+    Uses a thread lock to ensure concurrency safety
     """
     _instance = None
     _lock = threading.Lock()
@@ -25,19 +25,19 @@ class SessionManager:
         return cls._instance
 
     def _initialize(self):
-        """初始化会话存储"""
+        """Initialize session storage"""
         self.active_sessions: Dict[str, dict] = {}
         self.session_lock = threading.Lock()
 
     def create_session(self, initiator: str) -> str:
         """
-        创建新的协作会话
-        
+        Create a new collaboration session
+
         Args:
-            initiator: 发起者标识（用户名或ID）
-            
+            initiator: identifier of the session initiator (username or ID)
+
         Returns:
-            会话ID
+            session ID
         """
         session_id = str(uuid.uuid4())
         
@@ -50,7 +50,7 @@ class SessionManager:
                     initiator: {
                         "role": "initiator",
                         "joined_at": datetime.now().isoformat(),
-                        "channel_name": None  # 将在 WebSocket 连接时设置
+                        "channel_name": None  # will be set when the WebSocket connects
                     }
                 },
                 "structure": {
@@ -63,35 +63,35 @@ class SessionManager:
 
     def get_session(self, session_id: str) -> Optional[dict]:
         """
-        获取会话信息
-        
+        Retrieve session information
+
         Args:
-            session_id: 会话ID
-            
+            session_id: session ID
+
         Returns:
-            会话数据字典，如果不存在则返回 None
+            session data dict, or None if not found
         """
         with self.session_lock:
             return self.active_sessions.get(session_id)
 
     def session_exists(self, session_id: str) -> bool:
-        """检查会话是否存在"""
+        """Check whether a session exists"""
         with self.session_lock:
             return session_id in self.active_sessions
 
     def add_member(self, session_id: str, member_id: str, 
                    role: str = "viewer", channel_name: str = None) -> bool:
         """
-        添加成员到会话
-        
+        Add a member to a session
+
         Args:
-            session_id: 会话ID
-            member_id: 成员标识
-            role: 成员角色 (initiator/editor/viewer)
-            channel_name: WebSocket 通道名称
-            
+            session_id: session ID
+            member_id: member identifier
+            role: member role (initiator/editor/viewer)
+            channel_name: WebSocket channel name
+
         Returns:
-            成功返回 True，会话不存在返回 False
+            True on success, False if session does not exist
         """
         with self.session_lock:
             if session_id not in self.active_sessions:
@@ -107,15 +107,15 @@ class SessionManager:
 
     def remove_member(self, session_id: str, member_id: str) -> bool:
         """
-        从会话中移除成员
-        如果是最后一个成员离开，自动销毁会话
-        
+        Remove a member from a session
+        If the last member leaves, the session is destroyed
+
         Args:
-            session_id: 会话ID
-            member_id: 成员标识
-            
+            session_id: session ID
+            member_id: member identifier
+
         Returns:
-            会话是否被销毁
+            True if the session was destroyed, False otherwise
         """
         with self.session_lock:
             if session_id not in self.active_sessions:
@@ -135,15 +135,15 @@ class SessionManager:
     def update_member_channel(self, session_id: str, member_id: str, 
                              channel_name: str) -> bool:
         """
-        更新成员的 WebSocket 通道名称
-        
+        Update a member's WebSocket channel name
+
         Args:
-            session_id: 会话ID
-            member_id: 成员标识
-            channel_name: WebSocket 通道名称
-            
+            session_id: session ID
+            member_id: member identifier
+            channel_name: WebSocket channel name
+
         Returns:
-            成功返回 True
+            True on success
         """
         with self.session_lock:
             if session_id not in self.active_sessions:
@@ -158,14 +158,14 @@ class SessionManager:
 
     def get_member_role(self, session_id: str, member_id: str) -> Optional[str]:
         """
-        获取成员角色
-        
+        Get a member's role
+
         Args:
-            session_id: 会话ID
-            member_id: 成员标识
-            
+            session_id: session ID
+            member_id: member identifier
+
         Returns:
-            成员角色，如果不存在返回 None
+            member role, or None if member/session doesn't exist
         """
         with self.session_lock:
             session = self.active_sessions.get(session_id)
@@ -178,15 +178,15 @@ class SessionManager:
     def update_member_role(self, session_id: str, member_id: str, 
                           new_role: str) -> bool:
         """
-        更新成员角色（仅发起者可调用）
-        
+        Update a member's role (only allowed by the initiator)
+
         Args:
-            session_id: 会话ID
-            member_id: 成员标识
-            new_role: 新角色 (editor/viewer)
-            
+            session_id: session ID
+            member_id: member identifier
+            new_role: new role (editor/viewer)
+
         Returns:
-            成功返回 True
+            True on success
         """
         with self.session_lock:
             if session_id not in self.active_sessions:
@@ -200,7 +200,7 @@ class SessionManager:
             return False
 
     def is_initiator(self, session_id: str, member_id: str) -> bool:
-        """检查成员是否为发起者"""
+        """Check whether a member is the initiator"""
         with self.session_lock:
             session = self.active_sessions.get(session_id)
             if not session:
@@ -209,28 +209,28 @@ class SessionManager:
 
     def can_edit(self, session_id: str, member_id: str) -> bool:
         """
-        检查成员是否有编辑权限
-        
+        Check whether a member has edit permissions
+
         Args:
-            session_id: 会话ID
-            member_id: 成员标识
-            
+            session_id: session ID
+            member_id: member identifier
+
         Returns:
-            有权限返回 True
+            True if member has edit permissions
         """
         role = self.get_member_role(session_id, member_id)
         return role in ["initiator", "editor"]
 
     def update_structure(self, session_id: str, structure: dict) -> bool:
         """
-        更新文件夹结构（仅由发起者调用）
-        
+        Update folder/file structure (only called by the initiator)
+
         Args:
-            session_id: 会话ID
-            structure: 新的文件夹结构
-            
+            session_id: session ID
+            structure: new folder/file structure
+
         Returns:
-            成功返回 True
+            True on success
         """
         with self.session_lock:
             if session_id not in self.active_sessions:
@@ -241,13 +241,13 @@ class SessionManager:
 
     def get_structure(self, session_id: str) -> Optional[dict]:
         """
-        获取文件夹结构
-        
+        Retrieve folder/file structure
+
         Args:
-            session_id: 会话ID
-            
+            session_id: session ID
+
         Returns:
-            文件夹结构字典
+            structure dict, or None if session not found
         """
         with self.session_lock:
             session = self.active_sessions.get(session_id)
@@ -257,13 +257,13 @@ class SessionManager:
 
     def get_all_members(self, session_id: str) -> List[dict]:
         """
-        获取会话中的所有成员列表
-        
+        Get a list of all members in a session
+
         Args:
-            session_id: 会话ID
-            
+            session_id: session ID
+
         Returns:
-            成员列表
+            list of member dicts
         """
         with self.session_lock:
             session = self.active_sessions.get(session_id)
@@ -280,19 +280,19 @@ class SessionManager:
             return members
 
     def get_session_count(self) -> int:
-        """获取当前活跃会话数量"""
+        """Get the number of active sessions"""
         with self.session_lock:
             return len(self.active_sessions)
 
     def destroy_session(self, session_id: str) -> bool:
         """
-        强制销毁会话
-        
+        Forcefully destroy a session
+
         Args:
-            session_id: 会话ID
-            
+            session_id: session ID
+
         Returns:
-            成功返回 True
+            True on success
         """
         with self.session_lock:
             if session_id in self.active_sessions:
