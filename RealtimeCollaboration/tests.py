@@ -97,7 +97,7 @@ class SessionManagerTestCase(TestCase):
         """Test folder/file structure operations"""
         session_id = session_manager.create_session("alice")
         
-        # 获取初始结构
+        # Get initial structure
         structure = session_manager.get_structure(session_id)
         self.assertEqual(len(structure['folders']), 0)
         self.assertEqual(len(structure['files']), 0)
