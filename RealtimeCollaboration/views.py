@@ -84,7 +84,7 @@ def get_session(request, session_id):
                 'message': 'Session not found'
             }, status=404)
         
-        # 获取成员列表
+        # Get member list
         members = session_manager.get_all_members(session_id)
         
         return JsonResponse({
