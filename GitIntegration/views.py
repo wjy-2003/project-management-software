@@ -1,5 +1,4 @@
 import json
-import os
 
 from django.http import JsonResponse
 from django.shortcuts import render
@@ -9,6 +8,9 @@ from django.views.decorators.http import require_http_methods
 from .src.git_graph_builder import get_repo_commits
 from .src.git_operations import GitOperations
 from .src.git_status import GitStatus
+from .src.security import (GitPathValidationError,
+                           get_default_git_repository_path, log_git_operation,
+                           sanitize_path_string, validate_git_repository_path)
 
 
 def git_graph(request):
@@ -190,16 +192,14 @@ def git_resolve_conflicts(request):
 
 def git_commits_api(request):
     """API endpoint to get commit data as JSON"""
-    # Get git path from session or default
-    git_path = request.session.get("git_path")
-    if not git_path:
-        git_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    # Get validated git path
+    git_path = get_git_repository_path(request)
 
     # Get query parameters
     max_commits = int(request.GET.get("max_commits", 100))
 
     # Extract commit data
-    data = get_repo_commits(git_path, max_commits)
+    data = get_repo_commits(str(git_path), max_commits)
 
     return JsonResponse(data)
 
@@ -365,68 +365,91 @@ def git_branches(request):
 @csrf_exempt
 @require_http_methods(["POST"])
 def set_git_path(request):
-    """API endpoint to set the git repository path"""
-    try:
-        data = json.loads(request.body)
-        git_path = data.get("git_path", "").strip()
+    """API endpoint to set the git repository path with security validation"""
+    user = (
+        getattr(request.user, "username", "anonymous")
+        if hasattr(request, "user")
+        else "anonymous"
+    )
 
-        if not git_path:
+    try:
+        # Parse JSON data
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            log_git_operation("set_git_path", "invalid_json", user=user, success=False)
+            return JsonResponse(
+                {"success": False, "message": "Invalid JSON data"}, status=400
+            )
+
+        # Get and sanitize the path
+        raw_path = data.get("git_path", "").strip()
+        if not raw_path:
             return JsonResponse(
                 {"success": False, "message": "Git path is required"}, status=400
             )
 
-        # Normalize path
-        git_path = os.path.normpath(git_path)
+        try:
+            # Sanitize input first
+            sanitized_path = sanitize_path_string(raw_path)
+            # Validate the path with all security checks
+            validated_path = validate_git_repository_path(sanitized_path)
+        except GitPathValidationError as e:
+            log_git_operation("set_git_path", raw_path, user=user, success=False)
+            return JsonResponse({"success": False, "message": str(e)}, status=400)
 
-        # Check if the path exists and is a git repository
-        if not os.path.exists(git_path):
-            return JsonResponse(
-                {"success": False, "message": "Path does not exist"}, status=400
-            )
-
-        # Check if it's a git repository
-        git_dir = os.path.join(git_path, ".git")
-        if os.path.isfile(git_dir):
-            # Git worktree or separate git file
-            pass
-        elif not os.path.isdir(git_dir):
-            return JsonResponse(
-                {"success": False, "message": "Not a git repository"}, status=400
-            )
-
-        # Save to session
-        request.session["git_path"] = git_path
+        # Save validated path to session
+        request.session["git_path"] = str(validated_path)
         request.session.modified = True
+
+        # Log successful operation
+        log_git_operation("set_git_path", validated_path, user=user, success=True)
 
         return JsonResponse(
             {
                 "success": True,
-                "message": f"Git path set to: {git_path}",
-                "git_path": git_path,
+                "message": f"Git path set to: {validated_path}",
+                "git_path": str(validated_path),
             }
         )
 
-    except json.JSONDecodeError:
+    except Exception:
+        # Log unexpected errors
+        log_git_operation("set_git_path", "unknown", user=user, success=False)
         return JsonResponse(
-            {"success": False, "message": "Invalid JSON data"}, status=400
+            {"success": False, "message": "Internal server error"}, status=500
         )
-    except Exception as e:
-        return JsonResponse({"success": False, "message": str(e)}, status=500)
 
 
 @require_http_methods(["GET"])
 def get_git_path(request):
     """API endpoint to get the current git repository path"""
-    git_path = request.session.get("git_path")
-    if not git_path:
-        git_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-    return JsonResponse({"success": True, "git_path": git_path})
+    try:
+        git_path = get_git_repository_path(request)
+        return JsonResponse({"success": True, "git_path": str(git_path)})
+    except Exception as e:
+        return JsonResponse({"success": False, "message": str(e)}, status=500)
 
 
 def get_git_repository_path(request):
-    """Helper function to get the current git repository path from session or default"""
-    git_path = request.session.get("git_path")
-    if not git_path:
-        git_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    return git_path
+    """
+    Helper function to get the current git repository path from session or default.
+    Returns a validated and secure path.
+    """
+    # Get path from session first
+    session_path = request.session.get("git_path")
+
+    if session_path:
+        try:
+            # Validate the session path
+            validated_path = validate_git_repository_path(session_path)
+            return validated_path
+        except Exception:
+            # Log the validation failure and fall back to default
+            log_git_operation("validate_session_path", session_path, success=False)
+            # Clear invalid path from session
+            del request.session["git_path"]
+            request.session.modified = True
+
+    # Return default path
+    return get_default_git_repository_path()
