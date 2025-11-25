@@ -14,6 +14,9 @@ webapp/__pycache__/
 static/
 media/
 
+# .idea
+.idea/
+
 # Pre-commit/patch cache
 .cache/
 *.patch
