@@ -283,6 +283,7 @@ class GitStatus:
                         try:
                             self.repo.git.reset("HEAD", "--", file_path)
                         except GitCommandError:
+                            # It's okay if the file is not staged; just continue.
                             pass
                         discarded_files.append(file_path)
 
