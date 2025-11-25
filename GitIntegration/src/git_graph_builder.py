@@ -3,10 +3,13 @@ Git Graph Builder - Handles the construction of git commit graph data
  including node positioning and branch assignment.
 """
 
+import logging
 import re
 from typing import Dict, List, Set
 
 from git import Repo
+
+logger = logging.getLogger(__name__)
 
 
 class GitGraphBuilder:
@@ -62,7 +65,9 @@ class GitGraphBuilder:
                 ),
             }
         except Exception as e:
-            print(f"Error building graph: {e}")
+            logger.error(
+                f"Error building git graph for repository '{self.repo_path}': {str(e)}"
+            )
             return {"vertices": [], "branches": [], "error": str(e)}
 
     def _load_repository(self) -> None:
@@ -200,7 +205,9 @@ class GitGraphBuilder:
                             commit_to_branches[commit_sha] = []
                         commit_to_branches[commit_sha].append(branch_name)
             except Exception as e:
-                print(f"Error accessing branch {branch_name}: {e}")
+                logger.warning(
+                    f"Error accessing branch '{branch_name}' in repository '{self.repo_path}': {str(e)}"
+                )
                 continue
 
         return commit_to_branches

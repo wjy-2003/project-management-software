@@ -3,9 +3,12 @@ Git Operations - Handle git repository operations
 including branch switching, cherry-pick, reset, and merge.
 """
 
+import logging
 from typing import Dict, List, Optional
 
 from git import GitCommandError, InvalidGitRepositoryError, Repo
+
+logger = logging.getLogger(__name__)
 
 
 class GitOperations:
@@ -321,8 +324,8 @@ class GitOperations:
                 "is_merge": len(commit.parents) > 1,
             }
         except Exception as e:
-            # TODO
-            print(e)
+            # Log the error for debugging and monitoring
+            logger.error(f"Failed to get commit info for SHA '{commit_sha}': {str(e)}")
             return None
 
     def create_branch(
@@ -422,6 +425,8 @@ class GitOperations:
                 return "HEAD"
             return self.repo.active_branch.name
         except Exception as e:
-            # TODO
-            print(e)
+            # Log the error for debugging and monitoring
+            logger.error(
+                f"Failed to get current branch in repository '{self.repo_path}': {str(e)}"
+            )
             return "unknown"
