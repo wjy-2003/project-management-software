@@ -46,10 +46,9 @@ class SessionManagerTestCase(TestCase):
         """Test removing a member"""
         session_id = session_manager.create_session("alice")
         session_manager.add_member(session_id, "bob", role="editor")
-        
-        # 移除成员
+
         destroyed = session_manager.remove_member(session_id, "bob")
-        self.assertFalse(destroyed)  # 还有 alice，会话不应销毁
+        self.assertFalse(destroyed)
         
         members = session_manager.get_all_members(session_id)
         self.assertEqual(len(members), 1)
@@ -58,11 +57,9 @@ class SessionManagerTestCase(TestCase):
         """Test session is destroyed when last member leaves"""
         session_id = session_manager.create_session("alice")
         
-        # 移除唯一的成员
         destroyed = session_manager.remove_member(session_id, "alice")
         self.assertTrue(destroyed)
         
-        # 会话应该不存在了
         self.assertFalse(session_manager.session_exists(session_id))
     
     def test_permission_check(self):
@@ -71,12 +68,10 @@ class SessionManagerTestCase(TestCase):
         session_manager.add_member(session_id, "bob", role="editor")
         session_manager.add_member(session_id, "charlie", role="viewer")
         
-        # 检查编辑权限
         self.assertTrue(session_manager.can_edit(session_id, "alice"))
         self.assertTrue(session_manager.can_edit(session_id, "bob"))
         self.assertFalse(session_manager.can_edit(session_id, "charlie"))
         
-        # 检查发起者身份
         self.assertTrue(session_manager.is_initiator(session_id, "alice"))
         self.assertFalse(session_manager.is_initiator(session_id, "bob"))
     
@@ -85,11 +80,9 @@ class SessionManagerTestCase(TestCase):
         session_id = session_manager.create_session("alice")
         session_manager.add_member(session_id, "bob", role="viewer")
         
-        # 更新角色
         success = session_manager.update_member_role(session_id, "bob", "editor")
         self.assertTrue(success)
         
-        # 验证角色已更新
         role = session_manager.get_member_role(session_id, "bob")
         self.assertEqual(role, "editor")
     
@@ -97,7 +90,6 @@ class SessionManagerTestCase(TestCase):
         """Test initiator role cannot be changed"""
         session_id = session_manager.create_session("alice")
         
-        # 尝试更新发起者角色应该失败
         success = session_manager.update_member_role(session_id, "alice", "viewer")
         self.assertFalse(success)
     
@@ -117,11 +109,9 @@ class SessionManagerTestCase(TestCase):
             'parent_id': None
         })
         
-        # 更新结构
         success = session_manager.update_structure(session_id, structure)
         self.assertTrue(success)
         
-        # 验证结构已更新
         updated_structure = session_manager.get_structure(session_id)
         self.assertEqual(len(updated_structure['folders']), 1)
         self.assertEqual(updated_structure['folders'][0]['name'], 'src')
@@ -164,7 +154,6 @@ class CollaborationAPITestCase(TestCase):
     
     def test_get_session_api(self):
         """Test get session API"""
-        # 先创建会话
         session_id = session_manager.create_session("alice")
         
         response = self.client.get(
@@ -190,7 +179,6 @@ class CollaborationAPITestCase(TestCase):
         data = response.json()
         self.assertTrue(data['success'])
         
-        # 验证成员已添加
         members = session_manager.get_all_members(session_id)
         self.assertEqual(len(members), 2)
     

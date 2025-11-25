@@ -35,10 +35,10 @@ class CollaborationClient:
         if data['success']:
             self.session_id = data['session_id']
             self.member_id = initiator_id
-            print(f"✓ 会话已创建: {self.session_id}")
+            print(f"✓ Session created: {self.session_id}")
             return self.session_id
         else:
-            print(f"✗ 创建会话失败: {data['message']}")
+            print(f"✗ Failed to create session: {data['message']}")
             return None
     
     def join_session(self, session_id, member_id, role="viewer"):
@@ -51,10 +51,10 @@ class CollaborationClient:
         if data['success']:
             self.session_id = session_id
             self.member_id = member_id
-            print(f"✓ 已加入会话: {session_id} (角色: {role})")
+            print(f"✓ Joined session: {session_id} (role: {role})")
             return True
         else:
-            print(f"✗ 加入会话失败: {data['message']}")
+            print(f"✗ Failed to join session: {data['message']}")
             return False
     
     def get_session_info(self):
@@ -64,43 +64,43 @@ class CollaborationClient:
         )
         data = response.json()
         if data['success']:
-            print(f"✓ 会话信息:")
-            print(f"  发起者: {data['session']['initiator']}")
-            print(f"  成员数: {len(data['session']['members'])}")
-            print(f"  文件夹: {len(data['session']['structure']['folders'])}")
-            print(f"  文件: {len(data['session']['structure']['files'])}")
+            print(f"✓ Session info:")
+            print(f"  Initiator: {data['session']['initiator']}")
+            print(f"  Member count: {len(data['session']['members'])}")
+            print(f"  Folders: {len(data['session']['structure']['folders'])}")
+            print(f"  Files: {len(data['session']['structure']['files'])}")
             return data['session']
         else:
-            print(f"✗ 获取会话信息失败: {data['message']}")
+            print(f"✗ Failed to get session info: {data['message']}")
             return None
     
     def connect_websocket(self):
         """Connect to the WebSocket"""
         if not self.session_id or not self.member_id:
-            print("✗ 请先创建或加入会话")
+            print("✗ Please create or join a session first")
             return False
         
         ws_url = f"{self.ws_base_url}/ws/collaboration/{self.session_id}/{self.member_id}/"
-        print(f"正在连接到 WebSocket: {ws_url}")
+        print(f"Connecting to WebSocket: {ws_url}")
         
         try:
             self.ws = websocket.create_connection(ws_url)
-            print("✓ WebSocket 已连接")
-            
-            # 接收初始会话信息
+            print("✓ WebSocket connected")
+
+            # Receive initial session info
             initial_msg = json.loads(self.ws.recv())
             if initial_msg['type'] == 'session_info':
-                print(f"✓ 收到会话信息")
+                print(f"✓ Received session info")
             
             return True
         except Exception as e:
-            print(f"✗ WebSocket 连接失败: {e}")
+            print(f"✗ WebSocket connection failed: {e}")
             return False
     
     def create_folder(self, folder_id, folder_name, parent_id=None):
         """Create a folder"""
         if not self.ws:
-            print("✗ WebSocket 未连接")
+            print("✗ WebSocket not connected")
             return False
         
         self.ws.send(json.dumps({
@@ -112,13 +112,13 @@ class CollaborationClient:
                 "parent_id": parent_id
             }
         }))
-        print(f"→ 发送创建文件夹请求: {folder_name}")
+        print(f"→ Sent create folder request: {folder_name}")
         return True
     
     def create_file(self, file_id, file_name, parent_id=None, file_type="text"):
         """Create a file"""
         if not self.ws:
-            print("✗ WebSocket 未连接")
+            print("✗ WebSocket not connected")
             return False
         
         self.ws.send(json.dumps({
@@ -131,20 +131,20 @@ class CollaborationClient:
                 "type": file_type
             }
         }))
-        print(f"→ 发送创建文件请求: {file_name}")
+        print(f"→ Sent create file request: {file_name}")
         return True
     
     def listen_messages(self, callback=None):
         """Listen for WebSocket messages"""
         if not self.ws:
-            print("✗ WebSocket 未连接")
+            print("✗ WebSocket not connected")
             return
         
-        print("开始监听消息...")
+        print("Start listening for messages...")
         try:
             while True:
                 message = json.loads(self.ws.recv())
-                print(f"← 收到消息: {message['type']}")
+                print(f"← Received message: {message['type']}")
                 
                 if callback:
                     callback(message)
@@ -152,9 +152,9 @@ class CollaborationClient:
                     self._default_message_handler(message)
                     
         except websocket.WebSocketConnectionClosedException:
-            print("✗ WebSocket 连接已关闭")
+            print("✗ WebSocket connection closed")
         except KeyboardInterrupt:
-            print("\n停止监听")
+            print("\nStopped listening")
     
     def _default_message_handler(self, message):
         """Default message handler"""
@@ -163,31 +163,28 @@ class CollaborationClient:
         if msg_type == 'structure_changed':
             operation = message['operation']
             payload = message['payload']
-            print(f"  结构变更: {operation} - {payload}")
+            print(f"  Structure change: {operation} - {payload}")
         
         elif msg_type == 'member_joined':
-            print(f"  成员加入: {message['member_id']}")
+            print(f"  Member joined: {message['member_id']}")
         
         elif msg_type == 'member_left':
-            print(f"  成员离开: {message['member_id']}")
+            print(f"  Member left: {message['member_id']}")
         
         elif msg_type == 'permission_updated':
-            print(f"  权限更新: {message['member_id']} → {message['new_role']}")
+            print(f"  Permission updated: {message['member_id']} → {message['new_role']}")
         
         elif msg_type == 'error':
-            print(f"  错误: {message['message']}")
+            print(f"  Error: {message['message']}")
     
     def close(self):
         """Close the connection"""
         if self.ws:
             self.ws.close()
-            print("✓ WebSocket 已断开")
+            print("✓ WebSocket disconnected")
 
 
 def demo_basic_usage():
-    """Basic usage example"""
-    print("=== 基本使用示例 ===\n")
-    
     # Create initiator client
     client1 = CollaborationClient()
     session_id = client1.create_session("alice")
@@ -213,7 +210,7 @@ def demo_basic_usage():
     client1.get_session_info()
     
     # Listen for messages (blocking)
-    print("\n开始监听消息（按 Ctrl+C 停止）...")
+    print("\nListening for messages (press Ctrl+C to stop)...")
     try:
         client1.listen_messages()
     except KeyboardInterrupt:
@@ -223,9 +220,6 @@ def demo_basic_usage():
 
 
 def demo_multi_client():
-    """Multi-client collaboration example"""
-    print("=== 多客户端协作示例 ===\n")
-    
     # Client 1: initiator
     client1 = CollaborationClient()
     session_id = client1.create_session("alice")
@@ -250,22 +244,22 @@ def demo_multi_client():
         return
     
     # Client 1 creates a folder
-    print("\n--- Alice 创建文件夹 ---")
+    print("\n--- Alice creates folder ---")
     client1.create_folder("f1", "project")
     time.sleep(1)
     
     # Client 2 creates a file
-    print("\n--- Bob 创建文件 ---")
+    print("\n--- Bob creates file ---")
     client2.create_file("file1", "README.md", parent_id="f1", file_type="markdown")
     time.sleep(1)
     
     # Client 3 attempts to create a file (should fail, viewer role)
-    print("\n--- Charlie 尝试创建文件（只读） ---")
+    print("\n--- Charlie attempts to create file (viewer) ---")
     client3.create_file("file2", "test.txt", parent_id="f1")
     time.sleep(1)
     
     # Check final session state
-    print("\n--- 最终会话状态 ---")
+    print("\n--- Final session state ---")
     client1.get_session_info()
     
     # 清理
@@ -278,21 +272,21 @@ if __name__ == "__main__":
     import sys
     
     print("\n" + "="*50)
-    print("实时协作测试客户端")
+    print("Realtime Collaboration Test Client")
     print("="*50 + "\n")
     
-    print("请选择测试场景:")
-    print("1. 基本使用示例（单客户端）")
-    print("2. 多客户端协作示例")
-    print("3. 退出")
+    print("Select a test scenario:")
+    print("1. Basic usage (single client)")
+    print("2. Multi-client collaboration example")
+    print("3. Exit")
     
-    choice = input("\n请输入选项 (1-3): ").strip()
+    choice = input("\nEnter option (1-3): ").strip()
     
     if choice == "1":
         demo_basic_usage()
     elif choice == "2":
         demo_multi_client()
     elif choice == "3":
-        print("退出")
+        print("Exit")
     else:
-        print("无效选项")
+        print("Invalid option")
