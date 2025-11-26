@@ -1,0 +1,200 @@
+{% extends 'webapp/base.html' %}
+
+{% block title %}项目管理 - DevTeamFlow{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h1 class="h3">
+            <i class="fas fa-tasks text-primary"></i> 项目管理
+        </h1>
+    </div>
+    <div class="col-md-4 text-end">
+        <button class="btn btn-primary" onclick="location.href='{% url 'project_create' %}'">
+            <i class="fas fa-plus"></i> 新建项目
+        </button>
+    </div>
+</div>
+
+<!-- 项目列表 -->
+<div class="row">
+    {% for project in projects %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">{{ project.name|default:"电商平台" }}</h5>
+                <span class="badge bg-{{ project.status|default:'primary' }}">
+                    {{ project.status_label|default:"进行中" }}
+                </span>
+            </div>
+            <div class="card-body">
+                <p class="card-text">{{ project.description|default:"这是一个在线购物平台项目" }}</p>
+
+                <div class="row text-center mb-3">
+                    <div class="col-4">
+                        <small class="text-muted">需求</small>
+                        <h6 class="mb-0">{{ project.requirement_count|default:15 }}</h6>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-muted">成员</small>
+                        <h6 class="mb-0">{{ project.member_count|default:6 }}</h6>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-muted">进度</small>
+                        <h6 class="mb-0">{{ project.progress|default:65 }}%</h6>
+                    </div>
+                </div>
+
+                <div class="progress mb-3" style="height: 8px;">
+                    <div class="progress-bar bg-success" style="width: {{ project.progress|default:65 }}%"></div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted">
+                        <i class="fas fa-calendar"></i> 更新于 {{ project.updated|default:"2天前" }}
+                    </small>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-primary" onclick="location.href='{% url 'project_detail' project.id|default:1 %}'">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn btn-outline-secondary" onclick="location.href='{% url 'project_edit' project.id|default:1 %}'">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-outline-danger" onclick="confirmDelete({{ project.id|default:1 }})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    <!-- 示例项目卡片 -->
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">订单管理系统</h5>
+                <span class="badge bg-warning">测试中</span>
+            </div>
+            <div class="card-body">
+                <p class="card-text">企业级订单处理和库存管理系统</p>
+
+                <div class="row text-center mb-3">
+                    <div class="col-4">
+                        <small class="text-muted">需求</small>
+                        <h6 class="mb-0">22</h6>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-muted">成员</small>
+                        <h6 class="mb-0">4</h6>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-muted">进度</small>
+                        <h6 class="mb-0">85%</h6>
+                    </div>
+                </div>
+
+                <div class="progress mb-3" style="height: 8px;">
+                    <div class="progress-bar bg-warning" style="width: 85%"></div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted">
+                        <i class="fas fa-calendar"></i> 更新于 1小时前
+                    </small>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-primary">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn btn-outline-secondary">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-outline-danger">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">数据分析平台</h5>
+                <span class="badge bg-info">计划中</span>
+            </div>
+            <div class="card-body">
+                <p class="card-text">大数据分析和可视化平台开发</p>
+
+                <div class="row text-center mb-3">
+                    <div class="col-4">
+                        <small class="text-muted">需求</small>
+                        <h6 class="mb-0">30</h6>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-muted">成员</small>
+                        <h6 class="mb-0">8</h6>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-muted">进度</small>
+                        <h6 class="mb-0">15%</h6>
+                    </div>
+                </div>
+
+                <div class="progress mb-3" style="height: 8px;">
+                    <div class="progress-bar bg-info" style="width: 15%"></div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted">
+                        <i class="fas fa-calendar"></i> 更新于 刚刚
+                    </small>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-primary">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn btn-outline-secondary">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-outline-danger">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 筛选和搜索 -->
+<div class="row mt-4">
+    <div class="col-12">
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                <li class="page-item disabled">
+                    <a class="page-link" href="#" tabindex="-1">上一页</a>
+                </li>
+                <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                <li class="page-item"><a class="page-link" href="#">2</a></li>
+                <li class="page-item"><a class="page-link" href="#">3</a></li>
+                <li class="page-item">
+                    <a class="page-link" href="#">下一页</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function confirmDelete(projectId) {
+        if (confirm('确定要删除这个项目吗？此操作不可恢复。')) {
+            // TODO: 实现删除功能
+            console.log('删除项目:', projectId);
+        }
+    }
+</script>
+{% endblock %}

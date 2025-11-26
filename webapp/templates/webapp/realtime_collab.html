@@ -1,0 +1,184 @@
+{% extends 'webapp/base.html' %}
+
+{% block title %}实时协作 - DevTeamFlow{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card text-center">
+            <div class="card-body py-5">
+                <i class="fas fa-code fa-4x text-primary mb-4"></i>
+                <h2 class="card-title">实时协作开发</h2>
+                <p class="card-text lead">与团队成员进行实时的结对编程，提高开发效率和代码质量</p>
+
+                <div class="row my-5">
+                    <div class="col-md-4 mb-4">
+                        <div class="feature-box">
+                            <i class="fas fa-users fa-3x text-info mb-3"></i>
+                            <h5>多人协作</h5>
+                            <p class="text-muted">支持多人同时编辑同一代码文件</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-4">
+                        <div class="feature-box">
+                            <i class="fas fa-comments fa-3x text-success mb-3"></i>
+                            <h5>实时通信</h5>
+                            <p class="text-muted">内置聊天功能，方便交流讨论</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-4">
+                        <div class="feature-box">
+                            <i class="fas fa-shield-alt fa-3x text-warning mb-3"></i>
+                            <h5>安全会话</h5>
+                            <p class="text-muted">30分钟无活动自动断开连接</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-warning">
+                    <i class="fas fa-lock"></i>
+                    会话安全提示：协作会话将在30分钟无活动后自动结束，请及时保存您的工作
+                </div>
+
+                <div class="d-flex justify-content-center gap-3">
+                    <a href="http://localhost:8080/collab" target="_blank" class="btn btn-success btn-lg">
+                        <i class="fas fa-play"></i> 开始协作会话
+                    </a>
+                    <button class="btn btn-outline-secondary btn-lg" onclick="window.close()">
+                        <i class="fas fa-times"></i> 关闭
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 当前活跃会话 -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-users"></i> 当前活跃会话
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <div class="status-indicator bg-success me-3"></div>
+                            <div>
+                                <h6 class="mb-1">电商平台 - 用户认证模块</h6>
+                                <small class="text-muted">
+                                    <i class="fas fa-users"></i> 张三、李四、王五 正在协作
+                                </small>
+                            </div>
+                        </div>
+                        <button class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-sign-in-alt"></i> 加入
+                        </button>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <div class="status-indicator bg-warning me-3"></div>
+                            <div>
+                                <h6 class="mb-1">订单系统 - 支付接口</h6>
+                                <small class="text-muted">
+                                    <i class="fas fa-users"></i> 赵六、钱七 正在协作
+                                </small>
+                            </div>
+                        </div>
+                        <button class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-sign-in-alt"></i> 加入
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 协作统计 -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-bar"></i> 今日协作统计
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <h4 class="text-info">8</h4>
+                        <small class="text-muted">活跃会话</small>
+                    </div>
+                    <div class="col-md-3">
+                        <h4 class="text-success">24</h4>
+                        <small class="text-muted">参与人次</small>
+                    </div>
+                    <div class="col-md-3">
+                        <h4 class="text-primary">156</h4>
+                        <small class="text-muted">代码行数</small>
+                    </div>
+                    <div class="col-md-3">
+                        <h4 class="text-warning">4.5h</h4>
+                        <small class="text-muted">平均时长</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.feature-box {
+    padding: 20px;
+    border-radius: 10px;
+    background-color: #f8f9fa;
+    transition: transform 0.2s;
+}
+.feature-box:hover {
+    transform: translateY(-5px);
+    background-color: #e9ecef;
+}
+
+.status-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+.status-indicator.bg-success {
+    background-color: #28a745 !important;
+}
+
+.status-indicator.bg-warning {
+    background-color: #ffc107 !important;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(40, 167, 69, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
+    }
+}
+</style>
+
+<script>
+    // 检查是否有活跃的协作会话
+    function checkActiveSessions() {
+        // TODO: 实现检查活跃会话的逻辑
+    }
+
+    // 页面加载时检查
+    document.addEventListener('DOMContentLoaded', function() {
+        checkActiveSessions();
+
+        // 3秒后自动提示打开协作界面
+        setTimeout(() => {
+            if (confirm('是否要打开实时协作界面？')) {
+                window.open('http://localhost:8080/collab', '_blank');
+            }
+        }, 3000);
+    });
+</script>
+{% endblock %}

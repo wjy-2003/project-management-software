@@ -1,0 +1,314 @@
+{% extends 'webapp/base.html' %}
+
+{% block title %}仪表板 - DevTeamFlow{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="h3 mb-4">
+            <i class="fas fa-tachometer-alt text-primary"></i> 项目仪表板
+        </h1>
+    </div>
+</div>
+
+<!-- 项目概览卡片 -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">8</h4>
+                        <p class="card-text">进行中的项目</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-project-diagram fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">24</h4>
+                        <p class="card-text">活跃需求</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-clipboard-list fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">12</h4>
+                        <p class="card-text">团队成员</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-users fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-danger text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">5</h4>
+                        <p class="card-text">待处理冲突</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-exclamation-triangle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 图表区域 -->
+<div class="row mb-4">
+    <!-- 燃尽图 -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-fire text-danger"></i> 燃尽图
+                </h5>
+                <select class="form-select form-select-sm" style="width: auto;">
+                    <option>当前冲刺</option>
+                    <option>上一个冲刺</option>
+                    <option>所有冲刺</option>
+                </select>
+            </div>
+            <div class="card-body">
+                <canvas id="burndownChart" height="250"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- 甘特图 -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-gantt text-success"></i> 甘特图
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="ganttChart" height="250"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 最近活动 -->
+<div class="row">
+    <!-- 最新需求 -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-plus-circle text-primary"></i> 最新需求
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1">实现用户认证功能</h6>
+                            <small class="text-muted">项目：电商平台</small>
+                        </div>
+                        <span class="badge bg-warning">进行中</span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1">优化数据库查询性能</h6>
+                            <small class="text-muted">项目：订单系统</small>
+                        </div>
+                        <span class="badge bg-info">新建</span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1">添加邮件通知功能</h6>
+                            <small class="text-muted">项目：消息中心</small>
+                        </div>
+                        <span class="badge bg-success">已实现</span>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <a href="{% url 'requirement_list' %}" class="btn btn-sm btn-outline-primary">查看所有需求</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Git提交记录 -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fab fa-git-alt text-dark"></i> 最新提交
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between">
+                            <h6 class="mb-1">feat: 添加用户登录页面</h6>
+                            <small class="text-muted">2小时前</small>
+                        </div>
+                        <div class="d-flex align-items-center mt-2">
+                            <img src="https://via.placeholder.com/25" class="rounded-circle me-2" alt="avatar">
+                            <small class="text-muted">张三 · branch: feature/auth</small>
+                        </div>
+                    </div>
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between">
+                            <h6 class="mb-1">fix: 修复缓存问题</h6>
+                            <small class="text-muted">5小时前</small>
+                        </div>
+                        <div class="d-flex align-items-center mt-2">
+                            <img src="https://via.placeholder.com/25" class="rounded-circle me-2" alt="avatar">
+                            <small class="text-muted">李四 · branch: main</small>
+                        </div>
+                    </div>
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between">
+                            <h6 class="mb-1">refactor: 重构API模块</h6>
+                            <small class="text-muted">1天前</small>
+                        </div>
+                        <div class="d-flex align-items-center mt-2">
+                            <img src="https://via.placeholder.com/25" class="rounded-circle me-2" alt="avatar">
+                            <small class="text-muted">王五 · branch: refactor/api</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <a href="{% url 'git_integration' %}" class="btn btn-sm btn-outline-dark" target="_blank">查看Git历史</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 快速操作 -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-bolt text-warning"></i> 快速操作
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <button class="btn btn-primary w-100" onclick="location.href='{% url 'project_create' %}'">
+                            <i class="fas fa-plus"></i> 创建新项目
+                        </button>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <button class="btn btn-success w-100" onclick="location.href='{% url 'requirement_create' %}'">
+                            <i class="fas fa-clipboard-plus"></i> 添加新需求
+                        </button>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <button class="btn btn-info w-100" onclick="location.href='{% url 'team_member_add' %}'">
+                            <i class="fas fa-user-plus"></i> 添加团队成员
+                        </button>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <button class="btn btn-warning w-100" onclick="location.href='{% url 'realtime_collab' %}'" target="_blank">
+                            <i class="fas fa-code"></i> 开始协作编码
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // 燃尽图数据
+    const burndownCtx = document.getElementById('burndownChart').getContext('2d');
+    new Chart(burndownCtx, {
+        type: 'line',
+        data: {
+            labels: ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'],
+            datasets: [{
+                label: '理想进度',
+                data: [100, 83, 66, 50, 33, 16, 0],
+                borderColor: '#6c757d',
+                borderDash: [5, 5],
+                fill: false
+            }, {
+                label: '实际进度',
+                data: [100, 85, 70, 55, 35, 20, 10],
+                borderColor: '#007bff',
+                backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: '剩余工作量'
+                    }
+                }
+            }
+        }
+    });
+
+    // 甘特图数据（简化版）
+    const ganttCtx = document.getElementById('ganttChart').getContext('2d');
+    new Chart(ganttCtx, {
+        type: 'bar',
+        data: {
+            labels: ['需求分析', '系统设计', '开发阶段', '测试阶段', '部署上线'],
+            datasets: [{
+                label: '项目进度',
+                data: [100, 100, 75, 30, 0],
+                backgroundColor: [
+                    '#28a745',
+                    '#28a745',
+                    '#ffc107',
+                    '#17a2b8',
+                    '#6c757d'
+                ]
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    max: 100,
+                    title: {
+                        display: true,
+                        text: '完成度 (%)'
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

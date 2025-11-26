@@ -1,0 +1,377 @@
+{% extends 'webapp/base.html' %}
+
+{% block title %}团队管理 - DevTeamFlow{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h1 class="h3">
+            <i class="fas fa-users text-primary"></i> 团队管理
+        </h1>
+    </div>
+    <div class="col-md-4 text-end">
+        <button class="btn btn-success" onclick="location.href='{% url 'team_member_add' %}'">
+            <i class="fas fa-user-plus"></i> 添加成员
+        </button>
+    </div>
+</div>
+
+<!-- 团队统计 -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body text-center">
+                <h3>12</h3>
+                <p class="mb-0">总成员数</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body text-center">
+                <h3>8</h3>
+                <p class="mb-0">开发人员</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body text-center">
+                <h3>2</h3>
+                <p class="mb-0">项目经理</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body text-center">
+                <h3>2</h3>
+                <p class="mb-0">测试人员</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 角色管理标签页 -->
+<div class="card">
+    <div class="card-header">
+        <ul class="nav nav-tabs card-header-tabs" role="tablist">
+            <li class="nav-item">
+                <a class="nav-link active" data-bs-toggle="tab" href="#members" role="tab">
+                    <i class="fas fa-users"></i> 团队成员
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#roles" role="tab">
+                    <i class="fas fa-user-tag"></i> 角色权限
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#allocation" role="tab">
+                    <i class="fas fa-tasks"></i> 任务分配
+                </a>
+            </li>
+        </ul>
+    </div>
+    <div class="card-body">
+        <div class="tab-content">
+            <!-- 团队成员标签页 -->
+            <div class="tab-pane fade show active" id="members" role="tabpanel">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            <input type="text" class="form-control" placeholder="搜索成员...">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select">
+                            <option>所有角色</option>
+                            <option>开发人员</option>
+                            <option>项目经理</option>
+                            <option>测试人员</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select">
+                            <option>所有项目</option>
+                            <option>电商平台</option>
+                            <option>订单系统</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>成员</th>
+                                <th>角色</th>
+                                <th>邮箱</th>
+                                <th>参与项目</th>
+                                <th>当前任务</th>
+                                <th>状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <img src="https://via.placeholder.com/40" class="rounded-circle me-3" alt="avatar">
+                                        <div>
+                                            <strong>张三</strong>
+                                            <br><small class="text-muted">@zhangsan</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-primary">高级开发</span>
+                                </td>
+                                <td>zhangsan@example.com</td>
+                                <td>
+                                    <span class="badge bg-light text-dark me-1">电商平台</span>
+                                    <span class="badge bg-light text-dark">订单系统</span>
+                                </td>
+                                <td>3个任务</td>
+                                <td>
+                                    <span class="badge bg-success">活跃</span>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-outline-danger">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <img src="https://via.placeholder.com/40" class="rounded-circle me-3" alt="avatar">
+                                        <div>
+                                            <strong>李四</strong>
+                                            <br><small class="text-muted">@lisi</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">项目经理</span>
+                                </td>
+                                <td>lisi@example.com</td>
+                                <td>
+                                    <span class="badge bg-light text-dark">电商平台</span>
+                                </td>
+                                <td>管理任务</td>
+                                <td>
+                                    <span class="badge bg-success">活跃</span>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-outline-danger">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <img src="https://via.placeholder.com/40" class="rounded-circle me-3" alt="avatar">
+                                        <div>
+                                            <strong>王五</strong>
+                                            <br><small class="text-muted">@wangwu</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-success">测试工程师</span>
+                                </td>
+                                <td>wangwu@example.com</td>
+                                <td>
+                                    <span class="badge bg-light text-dark me-1">订单系统</span>
+                                    <span class="badge bg-light text-dark">消息中心</span>
+                                </td>
+                                <td>5个测试用例</td>
+                                <td>
+                                    <span class="badge bg-warning">忙碌</span>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-outline-danger">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 角色权限标签页 -->
+            <div class="tab-pane fade" id="roles" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>系统角色</h5>
+                        <div class="list-group">
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-1">系统管理员</h6>
+                                        <small class="text-muted">拥有所有权限</small>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-1">项目经理</h6>
+                                        <small class="text-muted">项目管理、团队分配、报表查看</small>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-1">开发人员</h6>
+                                        <small class="text-muted">代码提交、需求实现、协作编码</small>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-1">测试人员</h6>
+                                        <small class="text-muted">测试用例、缺陷报告、质量保证</small>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary mt-3">
+                            <i class="fas fa-plus"></i> 创建新角色
+                        </button>
+                    </div>
+                    <div class="col-md-6">
+                        <h5>权限配置</h5>
+                        <div class="card">
+                            <div class="card-body">
+                                <h6 class="card-title">项目经理权限</h6>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" checked>
+                                    <label class="form-check-label">查看所有项目</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" checked>
+                                    <label class="form-check-label">创建项目</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" checked>
+                                    <label class="form-check-label">分配任务</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" checked>
+                                    <label class="form-check-label">查看报表</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox">
+                                    <label class="form-check-label">删除项目</label>
+                                </div>
+                                <hr>
+                                <button class="btn btn-success btn-sm">保存权限</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 任务分配标签页 -->
+            <div class="tab-pane fade" id="allocation" role="tabpanel">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <h5>跨项目任务分配</h5>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <button class="btn btn-success">
+                            <i class="fas fa-plus"></i> 新建分配
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>成员</th>
+                                <th>主项目</th>
+                                <th>分配项目</th>
+                                <th>任务数</th>
+                                <th>分配日期</th>
+                                <th>状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>张三</td>
+                                <td>
+                                    <span class="badge bg-primary">电商平台</span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">订单系统</span>
+                                </td>
+                                <td>2个任务</td>
+                                <td>2024-01-15</td>
+                                <td>
+                                    <span class="badge bg-success">进行中</span>
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary">调整</button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>王五</td>
+                                <td>
+                                    <span class="badge bg-primary">订单系统</span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">消息中心</span>
+                                </td>
+                                <td>1个任务</td>
+                                <td>2024-01-10</td>
+                                <td>
+                                    <span class="badge bg-warning">待开始</span>
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary">调整</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
