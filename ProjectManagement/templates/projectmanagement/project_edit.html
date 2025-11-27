@@ -4,22 +4,46 @@
 
 {% block content %}
 <div class="container mt-4">
+    <!-- 面包屑导航 -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'projectmanagement:project_list' %}">项目列表</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'projectmanagement:project_info' project.project_number %}">{{ project.title }}</a></li>
+            <li class="breadcrumb-item active">编辑</li>
+        </ol>
+    </nav>
+
     <div class="row">
-        <div class="col-md-8 offset-md-2">
+        <div class="col-md-10 offset-md-1">
+            <!-- 页面标题 -->
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1>编辑项目</h1>
+                <div>
+                    <h1><i class="fas fa-edit"></i> 编辑项目</h1>
+                    <p class="text-muted">{{ project.title }} (<code>{{ project.project_number }}</code>)</p>
+                </div>
                 <a href="{% url 'projectmanagement:project_info' project.project_number %}"
                    class="btn btn-secondary">
                     <i class="fas fa-arrow-left"></i> 返回项目
                 </a>
             </div>
 
+            {% if messages %}
+            <div class="alert-container">
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
             <form method="post">
                 {% csrf_token %}
 
                 <div class="card mb-4">
-                    <div class="card-header">
-                        <h5 class="mb-0">基本信息</h5>
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="fas fa-info-circle"></i> 基本信息</h5>
                     </div>
                     <div class="card-body">
                         {% for field in form %}
@@ -42,8 +66,8 @@
                 </div>
 
                 <div class="card mb-4">
-                    <div class="card-header">
-                        <h5 class="mb-0">时间安排</h5>
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0"><i class="far fa-calendar-alt"></i> 时间安排</h5>
                     </div>
                     <div class="card-body">
                         {% for field in form %}
@@ -63,8 +87,8 @@
                 </div>
 
                 <div class="card mb-4">
-                    <div class="card-header">
-                        <h5 class="mb-0">工时信息</h5>
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="far fa-clock"></i> 工时信息</h5>
                     </div>
                     <div class="card-body">
                         {% for field in form %}
@@ -83,35 +107,15 @@
                     </div>
                 </div>
 
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <h5 class="mb-0">团队与文档</h5>
-                    </div>
-                    <div class="card-body">
-                        {% for field in form %}
-                            {% if field.name in 'team_members,documents' %}
-                            <div class="mb-3">
-                                <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-                                {{ field }}
-                                {% if field.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {{ field.errors }}
-                                    </div>
-                                {% endif %}
-                            </div>
-                            {% endif %}
-                        {% endfor %}
-                    </div>
-                </div>
-
-                <div class="text-center mt-4">
+                <hr>
+                <div class="d-flex justify-content-end gap-2 mt-4">
+                    <a href="{% url 'projectmanagement:project_info' project.project_number %}"
+                       class="btn btn-secondary">
+                        <i class="fas fa-times"></i> 取消
+                    </a>
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-save"></i> 保存更改
                     </button>
-                    <a href="{% url 'projectmanagement:project_info' project.project_number %}"
-                       class="btn btn-secondary ms-2">
-                        取消
-                    </a>
                 </div>
             </form>
         </div>

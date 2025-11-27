@@ -1,0 +1,952 @@
+{% extends 'base.html' %}
+
+{% block title %}会话 {{ session_id }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css">
+<style>
+    .file-tree {
+        font-family: monospace;
+    }
+    .file-tree ul {
+        list-style-type: none;
+        padding-left: 20px;
+    }
+    .file-tree li {
+        margin: 5px 0;
+    }
+    .folder-icon {
+        color: #f39c12;
+        cursor: pointer;
+    }
+    .file-icon {
+        color: #3498db;
+        cursor: pointer;
+    }
+    .file-name {
+        margin-left: 5px;
+        cursor: pointer;
+    }
+    .file-name:hover {
+        text-decoration: underline;
+    }
+    .folder-name {
+        margin-left: 5px;
+        cursor: pointer;
+        user-select: none;
+    }
+    .folder-name:hover {
+        text-decoration: underline;
+    }
+    .CodeMirror {
+        height: 100%;
+        font-size: 14px;
+        border: 1px solid #ddd;
+    }
+    /* 确保行号和代码不重叠 */
+    .CodeMirror-gutters {
+        border-right: 1px solid #555;
+        background-color: #272822;
+        min-width: 40px;
+    }
+    .CodeMirror-linenumber {
+        padding: 0 3px 0 5px;
+        min-width: 20px;
+        text-align: right;
+        color: #999;
+    }
+    .CodeMirror-lines {
+        padding: 4px 0;
+    }
+    .CodeMirror pre {
+        padding: 0 4px 0 8px;
+    }
+    /* 远程用户光标样式 - 使用widget方式 */
+    .remote-cursor-widget {
+        pointer-events: none;
+        z-index: 100;
+    }
+    .remote-cursor-label {
+        pointer-events: none;
+        z-index: 1001;
+    }
+    /* 自己的光标样式增强 */
+    .CodeMirror-cursor {
+        border-left: 2px solid #fff !important;
+        border-right: none;
+        width: 0;
+    }
+    .CodeMirror-focused .CodeMirror-cursor {
+        border-left-color: #00ff00 !important;
+    }
+    .online-indicator {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: #28a745;
+        margin-right: 5px;
+        animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+    #editorContainer {
+        height: calc(100vh - 200px);
+        min-height: 500px;
+    }
+    .file-tree-container {
+        height: calc(100vh - 200px);
+        overflow-y: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1><i class="fas fa-comments"></i> 协作会话 - <span id="currentFileTitle">选择文件开始编辑</span></h1>
+                    <p class="text-muted mb-0">会话ID: <code>{{ session_id }}</code> | 发起人: {{ session.initiator }} | 在线成员: <span id="onlineCount">{{ members|length }}</span></p>
+                </div>
+                <div>
+                    <button class="btn btn-success me-2" id="saveFileBtn" disabled>
+                        <i class="fas fa-save"></i> 保存文件
+                    </button>
+                    <a href="{% url 'collaboration:home' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> 返回首页
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-3">
+            <div class="card file-tree-container">
+                <div class="card-header bg-success text-white">
+                    <h6 class="mb-0"><i class="fas fa-folder-tree"></i> 项目文件</h6>
+                </div>
+                <div class="card-body">
+                    <div id="fileTree">
+                        <div class="text-center text-muted">
+                            <i class="fas fa-spinner fa-spin"></i> 加载中...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card" style="height: calc(100vh - 200px);">
+                <div class="card-header bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><i class="fas fa-edit"></i> 代码编辑器</h6>
+                        <small id="connectionStatus" class="text-white-50">
+                            <i class="fas fa-circle text-warning"></i> 连接中...
+                        </small>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div id="editorContainer">
+                        <div style="padding: 20px; text-align: center; color: #999;">
+                            <i class="fas fa-code" style="font-size: 48px; margin-bottom: 20px;"></i>
+                            <p>从左侧文件树选择一个文件开始编辑</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card mb-3">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0"><i class="fas fa-users"></i> 在线成员</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush" id="membersList">
+                        {% for member in members %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center" data-member-id="{{ member.member_id }}">
+                            <span>
+                                <span class="online-indicator"></span>
+                                <small>{{ member.member_id }}</small>
+                            </span>
+                            <div>
+                                {% if member.role == 'initiator' %}
+                                <span class="badge bg-danger">发起人</span>
+                                {% elif member.role == 'editor' %}
+                                <span class="badge bg-warning">编辑</span>
+                                {% else %}
+                                <span class="badge bg-secondary">查看</span>
+                                {% endif %}
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header bg-warning text-dark">
+                    <h6 class="mb-0"><i class="fas fa-user-plus"></i> 邀请成员</h6>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small">
+                        <i class="fas fa-info-circle"></i> 输入要邀请的用户ID,将其添加到当前会话
+                    </p>
+                    <form id="inviteMemberForm">
+                        <div class="mb-3">
+                            <label for="newUserId" class="form-label">用户ID</label>
+                            <input type="text" class="form-control" id="newUserId"
+                                   placeholder="输入要邀请的用户ID" required>
+                            <small class="form-text text-muted">请输入对方的用户ID</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="permission" class="form-label">角色</label>
+                            <select class="form-select" id="permission" required>
+                                <option value="viewer">查看者</option>
+                                <option value="editor">编辑者</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-warning w-100">
+                            <i class="fas fa-paper-plane"></i> 发送邀请
+                        </button>
+                    </form>
+                    <div id="inviteResult" class="mt-3"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <button class="btn btn-danger w-100" onclick="leaveSession()">
+                        <i class="fas fa-sign-out-alt"></i> 离开会话
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/css/css.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/htmlmixed/htmlmixed.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/markdown/markdown.min.js"></script>
+
+<script>
+const sessionId = '{{ session_id }}';
+const currentUserId = '{{ request.user.id }}';
+let codeEditor;
+let currentFile = null;
+let ws = null;
+let isConnected = false;
+let remoteCursors = new Map(); // 存储其他用户的光标
+let saveTimeout = null;
+
+// 获取 CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+const csrftoken = getCookie('csrftoken');
+
+// 颜色数组用于区分不同用户的光标
+const userColors = [
+    '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A',
+    '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2'
+];
+
+function getUserColor(userId) {
+    const hash = userId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return userColors[hash % userColors.length];
+}
+
+// 初始化 WebSocket 连接
+function initWebSocket() {
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${wsProtocol}//${window.location.host}/ws/collaboration/${sessionId}/${currentUserId}/`;
+
+    ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+        console.log('WebSocket 已连接');
+        isConnected = true;
+        updateConnectionStatus(true);
+    };
+
+    ws.onclose = () => {
+        console.log('WebSocket 已断开');
+        isConnected = false;
+        updateConnectionStatus(false);
+        // 5秒后尝试重连
+        setTimeout(() => {
+            console.log('尝试重新连接...');
+            initWebSocket();
+        }, 5000);
+    };
+
+    ws.onerror = (error) => {
+        console.error('WebSocket 错误:', error);
+        updateConnectionStatus(false);
+    };
+
+    ws.onmessage = (event) => {
+        handleWebSocketMessage(JSON.parse(event.data));
+    };
+}
+
+// 处理 WebSocket 消息
+function handleWebSocketMessage(data) {
+    console.log('收到消息:', data);
+
+    switch(data.type) {
+        case 'session_info':
+            console.log('会话信息已加载');
+            renderFileTree(data.session.structure);
+            break;
+
+        case 'member_joined':
+            console.log('成员加入:', data.member_id);
+            addMemberToList(data.member_id);
+            updateOnlineCount();
+            break;
+
+        case 'member_left':
+            console.log('成员离开:', data.member_id);
+            removeMemberFromList(data.member_id);
+            removeCursor(data.member_id);
+            updateOnlineCount();
+            break;
+
+        case 'cursor_update':
+            // 更新其他用户的光标位置
+            if (data.user_id !== currentUserId && currentFile && data.file_id === currentFile.id) {
+                updateRemoteCursor(data.user_id, data.position);
+            }
+            break;
+
+        case 'document_change':
+            // 接收到其他用户的文档修改
+            if (data.user_id !== currentUserId && currentFile && data.file_id === currentFile.id) {
+                applyRemoteChange(data.changes);
+            }
+            break;
+
+        case 'file_saved':
+            console.log('文件已保存:', data.filename);
+            break;
+
+        case 'error':
+            console.error('错误:', data.message);
+            alert('错误: ' + data.message);
+            break;
+    }
+}
+
+// 更新连接状态显示
+function updateConnectionStatus(connected) {
+    const statusEl = document.getElementById('connectionStatus');
+    if (connected) {
+        statusEl.innerHTML = '<i class="fas fa-circle text-success"></i> 已连接';
+    } else {
+        statusEl.innerHTML = '<i class="fas fa-circle text-danger"></i> 未连接';
+    }
+}
+
+// 更新在线人数
+function updateOnlineCount() {
+    const count = document.querySelectorAll('#membersList li').length;
+    document.getElementById('onlineCount').textContent = count;
+}
+
+// 添加成员到列表
+function addMemberToList(memberId) {
+    const membersList = document.getElementById('membersList');
+
+    // 检查成员是否已存在
+    const existingMember = membersList.querySelector(`li[data-member-id="${memberId}"]`);
+    if (existingMember) {
+        return; // 成员已存在，不重复添加
+    }
+
+    // 创建新的成员列表项
+    const li = document.createElement('li');
+    li.className = 'list-group-item d-flex justify-content-between align-items-center';
+    li.setAttribute('data-member-id', memberId);
+    li.innerHTML = `
+        <span>
+            <span class="online-indicator"></span>
+            <small>${memberId}</small>
+        </span>
+        <div>
+            <span class="badge bg-success">新成员</span>
+        </div>
+    `;
+
+    membersList.appendChild(li);
+    console.log('成员已添加到列表:', memberId);
+}
+
+// 从列表中移除成员
+function removeMemberFromList(memberId) {
+    const membersList = document.getElementById('membersList');
+    const memberElement = membersList.querySelector(`li[data-member-id="${memberId}"]`);
+
+    if (memberElement) {
+        memberElement.remove();
+        console.log('成员已从列表移除:', memberId);
+    }
+}
+
+
+// 初始化 CodeMirror 编辑器
+function initEditor() {
+    try {
+        const container = document.getElementById('editorContainer');
+        if (!container) {
+            throw new Error('编辑器容器未找到');
+        }
+
+        // 清空容器
+        container.innerHTML = '';
+
+        codeEditor = CodeMirror(container, {
+            lineNumbers: true,
+            theme: 'monokai',
+            mode: 'javascript',
+            indentUnit: 4,
+            tabSize: 4,
+            lineWrapping: true,
+            readOnly: true, // 默认只读,选择文件后才可编辑
+            cursorBlinkRate: 530, // 光标闪烁速率
+            cursorHeight: 1, // 光标高度
+        });
+
+        // 监听内容变化
+        codeEditor.on('change', (cm, change) => {
+            if (change.origin !== 'setValue' && change.origin !== 'remote') {
+                // 发送文档变化到服务器
+                sendDocumentChange(change);
+                // 延迟自动保存
+                scheduleAutoSave();
+            }
+        });
+
+        // 监听光标位置变化
+        codeEditor.on('cursorActivity', () => {
+            if (currentFile && isConnected) {
+                const cursor = codeEditor.getCursor();
+                sendCursorUpdate(cursor);
+            }
+        });
+
+        console.log('编辑器初始化成功');
+    } catch (error) {
+        console.error('编辑器初始化错误:', error);
+        throw error;
+    }
+}
+
+// 发送文档变化
+function sendDocumentChange(change) {
+    if (!isConnected || !currentFile) return;
+
+    ws.send(JSON.stringify({
+        type: 'document_change',
+        file_id: currentFile.id,
+        user_id: currentUserId,
+        changes: {
+            from: change.from,
+            to: change.to,
+            text: change.text,
+            removed: change.removed,
+            origin: change.origin
+        }
+    }));
+}
+
+// 发送光标位置更新
+function sendCursorUpdate(cursor) {
+    if (!isConnected || !currentFile) return;
+
+    ws.send(JSON.stringify({
+        type: 'cursor_update',
+        file_id: currentFile.id,
+        user_id: currentUserId,
+        position: { line: cursor.line, ch: cursor.ch }
+    }));
+}
+
+// 应用远程文档变化
+function applyRemoteChange(changes) {
+    if (!codeEditor) return;
+
+    try {
+        // 保存当前所有光标位置
+        const cursorPositions = new Map();
+        remoteCursors.forEach((cursor, userId) => {
+            cursorPositions.set(userId, cursor.position);
+        });
+
+        // 应用文档变更
+        const from = { line: changes.from.line, ch: changes.from.ch };
+        const to = { line: changes.to.line, ch: changes.to.ch };
+        codeEditor.replaceRange(changes.text.join('\n'), from, to, 'remote');
+
+        // 重新定位所有光标（CodeMirror的bookmark会自动调整位置）
+        console.log('文档已更新，光标位置已自动调整');
+    } catch (error) {
+        console.error('应用远程变更失败:', error);
+    }
+}
+
+// 更新远程光标
+function updateRemoteCursor(userId, position) {
+    if (!codeEditor) return;
+
+    const color = getUserColor(userId);
+
+    // 移除旧光标widget
+    if (remoteCursors.has(userId)) {
+        const oldCursor = remoteCursors.get(userId);
+        if (oldCursor.widget) {
+            oldCursor.widget.clear();
+        }
+    }
+
+    // 创建光标元素
+    const cursorEl = document.createElement('span');
+    cursorEl.className = 'remote-cursor-widget';
+    cursorEl.style.borderLeft = `2px solid ${color}`;
+    cursorEl.style.height = '1.2em';
+    cursorEl.style.display = 'inline-block';
+    cursorEl.style.position = 'relative';
+    cursorEl.style.marginLeft = '-1px';
+
+    // 创建标签
+    const labelEl = document.createElement('span');
+    labelEl.className = 'remote-cursor-label';
+    labelEl.style.backgroundColor = color;
+    labelEl.style.color = 'white';
+    labelEl.style.padding = '2px 5px';
+    labelEl.style.borderRadius = '3px';
+    labelEl.style.fontSize = '11px';
+    labelEl.style.position = 'absolute';
+    labelEl.style.top = '-18px';
+    labelEl.style.left = '0';
+    labelEl.style.whiteSpace = 'nowrap';
+    labelEl.style.fontWeight = 'bold';
+    labelEl.style.zIndex = '1000';
+    labelEl.textContent = userId.substring(0, 8);
+
+    cursorEl.appendChild(labelEl);
+
+    // 使用CodeMirror的bookmarkWidget API来精确定位
+    try {
+        const widget = codeEditor.setBookmark(
+            { line: position.line, ch: position.ch },
+            { widget: cursorEl, insertLeft: true }
+        );
+
+        remoteCursors.set(userId, { widget, position, element: cursorEl });
+        console.log(`更新远程光标: ${userId} at line ${position.line}, ch ${position.ch}`);
+    } catch (error) {
+        console.error('光标定位失败:', error);
+    }
+}
+
+// 移除用户光标
+function removeCursor(userId) {
+    if (remoteCursors.has(userId)) {
+        const cursor = remoteCursors.get(userId);
+        if (cursor.widget) {
+            cursor.widget.clear();
+        }
+        remoteCursors.delete(userId);
+        console.log('移除光标:', userId);
+    }
+}
+
+// 安排自动保存
+function scheduleAutoSave() {
+    if (saveTimeout) {
+        clearTimeout(saveTimeout);
+    }
+
+    saveTimeout = setTimeout(() => {
+        saveFile(true); // true表示自动保存
+    }, 2000); // 2秒后自动保存
+}
+
+
+// 根据文件扩展名获取语言模式
+function getModeByExtension(filename) {
+    const ext = filename.split('.').pop().toLowerCase();
+    const modeMap = {
+        'js': 'javascript',
+        'py': 'python',
+        'css': 'css',
+        'html': 'htmlmixed',
+        'md': 'markdown',
+        'json': 'javascript',
+        'txt': 'text'
+    };
+    return modeMap[ext] || 'text';
+}
+
+// 存储当前会话结构
+let sessionStructure = null;
+
+// 渲染文件树
+function renderFileTree(structure) {
+    sessionStructure = structure;  // 保存结构以供后续使用
+    const treeDiv = document.getElementById('fileTree');
+
+    console.log('Session structure:', structure);  // 调试信息
+
+    if (!structure || (!structure.folders && !structure.files) ||
+        ((!structure.folders || structure.folders.length === 0) &&
+         (!structure.files || structure.files.length === 0))) {
+        treeDiv.innerHTML = '<p class="text-muted">暂无项目结构</p>';
+        return;
+    }
+
+    const tree = buildTree(structure);
+    treeDiv.innerHTML = '<div class="file-tree">' + tree + '</div>';
+}
+
+// 构建树状结构 HTML
+function buildTree(structure, parentId = null) {
+    let html = '<ul>';
+
+    // 渲染文件夹
+    if (structure.folders) {
+        structure.folders
+            .filter(f => f.parent_id === parentId)
+            .forEach(folder => {
+                html += `
+                    <li>
+                        <i class="fas fa-folder folder-icon" onclick="toggleFolder(this)"></i>
+                        <span class="folder-name" onclick="toggleFolder(this.previousElementSibling)">${folder.name}</span>
+                        <div style="display: none;">
+                            ${buildTree(structure, folder.id)}
+                        </div>
+                    </li>
+                `;
+            });
+    }
+
+    // 渲染文件
+    if (structure.files) {
+        structure.files
+            .filter(f => f.parent_id === parentId)
+            .forEach(file => {
+                const icon = getFileIcon(file.name);
+                html += `
+                    <li>
+                        <i class="${icon} file-icon"></i>
+                        <span class="file-name" onclick="openFile('${file.id}', '${file.name}')">${file.name}</span>
+                    </li>
+                `;
+            });
+    }
+
+    html += '</ul>';
+    return html;
+}
+
+// 根据文件类型获取图标
+function getFileIcon(filename) {
+    const ext = filename.split('.').pop().toLowerCase();
+    const iconMap = {
+        'js': 'fab fa-js-square',
+        'py': 'fab fa-python',
+        'html': 'fab fa-html5',
+        'css': 'fab fa-css3-alt',
+        'md': 'fab fa-markdown',
+        'json': 'fas fa-file-code',
+    };
+    return iconMap[ext] || 'fas fa-file-alt';
+}
+
+// 切换文件夹展开/收起
+function toggleFolder(icon) {
+    const li = icon.parentElement;
+    const subTree = li.querySelector('div');
+
+    if (subTree.style.display === 'none') {
+        subTree.style.display = 'block';
+        icon.classList.remove('fa-folder');
+        icon.classList.add('fa-folder-open');
+    } else {
+        subTree.style.display = 'none';
+        icon.classList.remove('fa-folder-open');
+        icon.classList.add('fa-folder');
+    }
+}
+
+// 打开文件进行编辑
+async function openFile(fileId, fileName) {
+    currentFile = { id: fileId, name: fileName };
+
+    // 更新标题
+    document.getElementById('currentFileTitle').textContent = fileName;
+
+    // 设置编辑器模式
+    const mode = getModeByExtension(fileName);
+    codeEditor.setOption('mode', mode);
+    codeEditor.setOption('readOnly', false); // 允许编辑
+
+    // 启用保存按钮
+    document.getElementById('saveFileBtn').disabled = false;
+
+    // 清除所有远程光标
+    remoteCursors.forEach((cursor, userId) => removeCursor(userId));
+
+    // 从session structure中查找文件内容
+    let content = '';
+    if (sessionStructure && sessionStructure.files) {
+        const file = sessionStructure.files.find(f => f.id === fileId || f.name === fileName);
+        if (file && file.content) {
+            content = file.content;
+        } else {
+            content = `// 文件: ${fileName}\n// 开始编辑...\n`;
+        }
+    } else {
+        content = `// 文件: ${fileName}\n// 正在加载内容...\n`;
+    }
+
+    codeEditor.setValue(content);
+    codeEditor.focus();
+
+    // 通知其他用户当前正在编辑此文件
+    if (isConnected) {
+        ws.send(JSON.stringify({
+            type: 'file_opened',
+            file_id: fileId,
+            user_id: currentUserId
+        }));
+    }
+}
+
+// 保存文件
+async function saveFile(isAutoSave = false) {
+    if (!currentFile) return;
+
+    const content = codeEditor.getValue();
+    const saveBtn = document.getElementById('saveFileBtn');
+    const originalText = saveBtn.innerHTML;
+
+    try {
+        if (!isAutoSave) {
+            // 手动保存时禁用按钮
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
+        }
+
+        const response = await fetch(`/api/collaboration/sessions/${sessionId}/save/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            },
+            body: JSON.stringify({
+                filename: currentFile.name,
+                content: content
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            if (!isAutoSave) {
+                // 手动保存时显示提示
+                showSaveSuccess();
+            }
+            console.log(`文件 ${currentFile.name} 已保存`);
+
+            // 通过WebSocket通知其他用户文件已保存
+            if (isConnected) {
+                ws.send(JSON.stringify({
+                    type: 'file_saved',
+                    file_id: currentFile.id,
+                    filename: currentFile.name,
+                    user_id: currentUserId
+                }));
+            }
+        } else {
+            throw new Error(data.message);
+        }
+    } catch (error) {
+        console.error('保存失败:', error);
+        if (!isAutoSave) {
+            alert('保存失败: ' + error.message);
+        }
+    } finally {
+        if (!isAutoSave) {
+            // 恢复按钮
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalText;
+        }
+    }
+}
+
+// 显示保存成功提示
+function showSaveSuccess() {
+    const saveBtn = document.getElementById('saveFileBtn');
+    const originalText = saveBtn.innerHTML;
+    saveBtn.innerHTML = '<i class="fas fa-check"></i> 已保存';
+    setTimeout(() => {
+        saveBtn.innerHTML = originalText;
+    }, 2000);
+}
+
+// 绑定保存按钮
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('saveFileBtn').addEventListener('click', () => saveFile(false));
+});
+
+
+// 加载会话结构
+async function loadStructure() {
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5秒超时
+
+        const response = await fetch(`/api/collaboration/sessions/${sessionId}/structure/`, {
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        const data = await response.json();
+
+        if (data.success) {
+            renderFileTree(data.structure);
+        } else {
+            console.error('加载结构失败:', data.message);
+            document.getElementById('fileTree').innerHTML = '<p class="text-danger">加载失败: ' + (data.message || '未知错误') + '</p>';
+        }
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            console.error('加载结构超时');
+            document.getElementById('fileTree').innerHTML = '<p class="text-warning">加载超时,请刷新页面重试</p>';
+        } else {
+            console.error('加载结构失败:', error);
+            document.getElementById('fileTree').innerHTML = '<p class="text-danger">加载失败,请刷新页面</p>';
+        }
+    }
+}
+
+// 页面加载时初始化
+window.addEventListener('load', () => {
+    console.log('页面加载完成,开始初始化...');
+    try {
+        initEditor();
+        console.log('编辑器初始化完成');
+    } catch (error) {
+        console.error('编辑器初始化失败:', error);
+        alert('编辑器初始化失败: ' + error.message);
+    }
+
+    try {
+        initWebSocket();
+        console.log('WebSocket初始化开始');
+    } catch (error) {
+        console.error('WebSocket初始化失败:', error);
+    }
+
+    try {
+        loadStructure();
+        console.log('开始加载文件结构');
+    } catch (error) {
+        console.error('加载文件结构失败:', error);
+    }
+});
+
+// 邀请成员
+document.getElementById('inviteMemberForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const userId = document.getElementById('newUserId').value;
+    const permission = document.getElementById('permission').value;
+    const resultDiv = document.getElementById('inviteResult');
+
+    try {
+        // 使用邀请API
+        const inviteResponse = await fetch(`/api/collaboration/sessions/${sessionId}/invite/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            },
+            body: JSON.stringify({ user_id: userId, role: permission })
+        });
+
+        const inviteData = await inviteResponse.json();
+
+        if (inviteData.success) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-success">
+                    成功邀请用户 ${userId}
+                </div>
+            `;
+            // 刷新页面
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            throw new Error(inviteData.message);
+        }
+    } catch (error) {
+        resultDiv.innerHTML = `
+            <div class="alert alert-danger">
+                错误: ${error.message}
+            </div>
+        `;
+    }
+});
+
+// 离开会话
+async function leaveSession() {
+    if (!confirm('确定要离开此会话吗？')) return;
+
+    try {
+        const response = await fetch(`/api/collaboration/sessions/${sessionId}/leave/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            },
+            body: JSON.stringify({})
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('已离开会话');
+            window.location.href = '{% url "collaboration:home" %}';
+        } else {
+            alert('离开失败: ' + data.message);
+        }
+    } catch (error) {
+        alert('错误: ' + error.message);
+    }
+}
+</script>
+{% endblock %}

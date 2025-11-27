@@ -67,4 +67,10 @@ urlpatterns = [
         views.document_delete,
         name="document_delete",
     ),
+    # 成员管理相关的URL
+    path(
+        "<str:project_number>/members/manage/",
+        views.project_members_manage,
+        name="members_manage",
+    ),
 ]
