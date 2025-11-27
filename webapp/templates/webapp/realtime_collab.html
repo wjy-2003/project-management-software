@@ -1,184 +1,305 @@
 {% extends 'webapp/base.html' %}
 
-{% block title %}实时协作 - DevTeamFlow{% endblock %}
+{% block title %}实时协作开发 - DevTeamFlow{% endblock %}
+
+{% block extra_css %}
+<style>
+.collaboration-container {
+    height: calc(100vh - 200px);
+    min-height: 600px;
+}
+
+.collaboration-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1.5rem;
+    border-radius: 10px 10px 0 0;
+}
+
+.collaboration-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    border-radius: 0 0 10px 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    display: none; /* 初始隐藏，加载完成后显示 */
+}
+
+/* iframe 加载优化 */
+.collaboration-iframe.loaded {
+    display: block;
+}
+
+.loading-spinner {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 400px;
+    flex-direction: column;
+}
+
+.info-cards {
+    margin-bottom: 2rem;
+}
+
+.info-card {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-align: center;
+    transition: transform 0.2s ease;
+}
+
+.info-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.info-card i {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 15px;
+    font-size: 0.875rem;
+}
+
+.quick-actions {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    z-index: 1000;
+}
+
+.quick-action-btn {
+    display: block;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    box-shadow: 0 2px 10px rgba(0, 123, 255, 0.3);
+    margin-bottom: 1rem;
+    transition: all 0.3s ease;
+}
+
+.quick-action-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 20px rgba(0, 123, 255, 0.4);
+}
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card text-center">
-            <div class="card-body py-5">
-                <i class="fas fa-code fa-4x text-primary mb-4"></i>
-                <h2 class="card-title">实时协作开发</h2>
-                <p class="card-text lead">与团队成员进行实时的结对编程，提高开发效率和代码质量</p>
+<!-- 页面标题和说明 -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="fas fa-code text-primary me-2"></i>实时协作开发</h2>
+        <p class="text-muted mb-0">与团队成员进行实时的结对编程，支持多种编程语言和实时同步</p>
+    </div>
+    <div>
+        <span class="status-badge">
+            <i class="fas fa-circle text-success me-1"></i> 协作服务运行中
+        </span>
+    </div>
+</div>
 
-                <div class="row my-5">
-                    <div class="col-md-4 mb-4">
-                        <div class="feature-box">
-                            <i class="fas fa-users fa-3x text-info mb-3"></i>
-                            <h5>多人协作</h5>
-                            <p class="text-muted">支持多人同时编辑同一代码文件</p>
-                        </div>
-                    </div>
-                    <div class="col-md-4 mb-4">
-                        <div class="feature-box">
-                            <i class="fas fa-comments fa-3x text-success mb-3"></i>
-                            <h5>实时通信</h5>
-                            <p class="text-muted">内置聊天功能，方便交流讨论</p>
-                        </div>
-                    </div>
-                    <div class="col-md-4 mb-4">
-                        <div class="feature-box">
-                            <i class="fas fa-shield-alt fa-3x text-warning mb-3"></i>
-                            <h5>安全会话</h5>
-                            <p class="text-muted">30分钟无活动自动断开连接</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="alert alert-warning">
-                    <i class="fas fa-lock"></i>
-                    会话安全提示：协作会话将在30分钟无活动后自动结束，请及时保存您的工作
-                </div>
-
-                <div class="d-flex justify-content-center gap-3">
-                    <a href="http://localhost:8080/collab" target="_blank" class="btn btn-success btn-lg">
-                        <i class="fas fa-play"></i> 开始协作会话
-                    </a>
-                    <button class="btn btn-outline-secondary btn-lg" onclick="window.close()">
-                        <i class="fas fa-times"></i> 关闭
-                    </button>
-                </div>
-            </div>
+<!-- 功能介绍卡片 -->
+<div class="row info-cards">
+    <div class="col-md-3 mb-3">
+        <div class="info-card">
+            <i class="fas fa-users text-info"></i>
+            <h5>多人协作</h5>
+            <p class="text-muted small">支持多人同时编辑同一文件</p>
         </div>
-
-        <!-- 当前活跃会话 -->
-        <div class="card mt-4">
-            <div class="card-header">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-users"></i> 当前活跃会话
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="list-group">
-                    <div class="list-group-item d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center">
-                            <div class="status-indicator bg-success me-3"></div>
-                            <div>
-                                <h6 class="mb-1">电商平台 - 用户认证模块</h6>
-                                <small class="text-muted">
-                                    <i class="fas fa-users"></i> 张三、李四、王五 正在协作
-                                </small>
-                            </div>
-                        </div>
-                        <button class="btn btn-sm btn-outline-primary">
-                            <i class="fas fa-sign-in-alt"></i> 加入
-                        </button>
-                    </div>
-                    <div class="list-group-item d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center">
-                            <div class="status-indicator bg-warning me-3"></div>
-                            <div>
-                                <h6 class="mb-1">订单系统 - 支付接口</h6>
-                                <small class="text-muted">
-                                    <i class="fas fa-users"></i> 赵六、钱七 正在协作
-                                </small>
-                            </div>
-                        </div>
-                        <button class="btn btn-sm btn-outline-primary">
-                            <i class="fas fa-sign-in-alt"></i> 加入
-                        </button>
-                    </div>
-                </div>
-            </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="info-card">
+            <i class="fas fa-sync text-success"></i>
+            <h5>实时同步</h5>
+            <p class="text-muted small">所有更改实时同步到所有成员</p>
         </div>
-
-        <!-- 协作统计 -->
-        <div class="card mt-4">
-            <div class="card-header">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-chart-bar"></i> 今日协作统计
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="row text-center">
-                    <div class="col-md-3">
-                        <h4 class="text-info">8</h4>
-                        <small class="text-muted">活跃会话</small>
-                    </div>
-                    <div class="col-md-3">
-                        <h4 class="text-success">24</h4>
-                        <small class="text-muted">参与人次</small>
-                    </div>
-                    <div class="col-md-3">
-                        <h4 class="text-primary">156</h4>
-                        <small class="text-muted">代码行数</small>
-                    </div>
-                    <div class="col-md-3">
-                        <h4 class="text-warning">4.5h</h4>
-                        <small class="text-muted">平均时长</small>
-                    </div>
-                </div>
-            </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="info-card">
+            <i class="fas fa-code text-warning"></i>
+            <h5>多语言支持</h5>
+            <p class="text-muted small">支持 Python、JavaScript、HTML 等多种语言</p>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="info-card">
+            <i class="fas fa-shield-alt text-danger"></i>
+            <h5>安全会话</h5>
+            <p class="text-muted small">30分钟无活动自动断开保护</p>
         </div>
     </div>
 </div>
 
-<style>
-.feature-box {
-    padding: 20px;
-    border-radius: 10px;
-    background-color: #f8f9fa;
-    transition: transform 0.2s;
-}
-.feature-box:hover {
-    transform: translateY(-5px);
-    background-color: #e9ecef;
-}
+<!-- 协作编辑器容器 -->
+<div class="card collaboration-container">
+    <div class="collaboration-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h4 class="mb-1"><i class="fas fa-rocket me-2"></i>协作编辑器</h4>
+                <p class="mb-0 opacity-75">创建新房间或加入现有房间开始协作</p>
+            </div>
+            <div>
+                <button class="btn btn-light btn-sm me-2" onclick="refreshCollaboration()">
+                    <i class="fas fa-sync-alt me-1"></i>刷新
+                </button>
+                <button class="btn btn-outline-light btn-sm" onclick="openInNewTab()">
+                    <i class="fas fa-external-link-alt me-1"></i>新窗口打开
+                </button>
+            </div>
+        </div>
+    </div>
 
-.status-indicator {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    animation: pulse 2s infinite;
-}
+    <!-- iframe 加载状态 -->
+    <div id="loadingState" class="loading-spinner">
+        <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <h5>正在加载协作编辑器...</h5>
+        <p class="text-muted">请稍候，正在初始化实时协作环境</p>
+    </div>
 
-.status-indicator.bg-success {
-    background-color: #28a745 !important;
-}
+    <!-- 协作编辑器 iframe -->
+    <iframe
+        id="collaborationFrame"
+        src="http://localhost:8080/collab"
+        class="collaboration-iframe"
+        onload="hideLoading()"
+        onerror="handleLoadError()"
+        allow="clipboard-read; clipboard-write; microphone; camera"
+        title="实时协作编辑器">
+    </iframe>
+</div>
 
-.status-indicator.bg-warning {
-    background-color: #ffc107 !important;
-}
+<!-- 使用提示 -->
+<div class="alert alert-info mt-4" role="alert">
+    <h5><i class="fas fa-info-circle me-2"></i>使用提示</h5>
+    <ul class="mb-0">
+        <li>首次使用请确保协作服务已启动（运行在 localhost:8080）</li>
+        <li>创建房间后可通过分享链接邀请团队成员加入</li>
+        <li>支持创建文件夹、多种编程语言文件，以及实时光标同步</li>
+        <li>建议使用 Chrome 或 Firefox 浏览器以获得最佳体验</li>
+    </ul>
+</div>
 
-@keyframes pulse {
-    0% {
-        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
-    }
-    70% {
-        box-shadow: 0 0 0 10px rgba(40, 167, 69, 0);
-    }
-    100% {
-        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
-    }
-}
-</style>
+<!-- 快捷操作按钮 -->
+<div class="quick-actions">
+    <button class="quick-action-btn" onclick="createNewSession()" title="创建新房间">
+        <i class="fas fa-plus"></i>
+    </button>
+    <button class="quick-action-btn" onclick="joinSession()" title="加入房间">
+        <i class="fas fa-sign-in-alt"></i>
+    </button>
+    <button class="quick-action-btn bg-success" onclick="toggleFullscreen()" title="全屏模式">
+        <i class="fas fa-expand"></i>
+    </button>
+</div>
 
 <script>
-    // 检查是否有活跃的协作会话
-    function checkActiveSessions() {
-        // TODO: 实现检查活跃会话的逻辑
+// 隐藏加载状态
+function hideLoading() {
+    const loadingState = document.getElementById('loadingState');
+    const iframe = document.getElementById('collaborationFrame');
+    loadingState.style.display = 'none';
+    iframe.classList.add('loaded');
+}
+
+// 处理加载错误
+function handleLoadError() {
+    const loadingState = document.getElementById('loadingState');
+    loadingState.innerHTML = `
+        <div class="text-center">
+            <i class="fas fa-exclamation-triangle text-warning" style="font-size: 3rem;"></i>
+            <h5 class="mt-3">协作服务未启动</h5>
+            <p class="text-muted">请先启动 CollabFrontend 服务</p>
+            <div class="alert alert-light d-inline-block">
+                <code>cd CollabFrontend && npm start</code>
+            </div>
+            <button class="btn btn-primary mt-3" onclick="location.reload()">
+                <i class="fas fa-redo me-1"></i>重新加载
+            </button>
+        </div>
+    `;
+}
+
+// 刷新协作编辑器
+function refreshCollaboration() {
+    const iframe = document.getElementById('collaborationFrame');
+    const loadingState = document.getElementById('loadingState');
+
+    loadingState.style.display = 'flex';
+    iframe.style.display = 'none';
+    iframe.src = iframe.src;
+}
+
+// 在新窗口打开
+function openInNewTab() {
+    window.open('http://localhost:8080/collab', '_blank');
+}
+
+// 创建新会话（快捷方式）
+function createNewSession() {
+    const iframe = document.getElementById('collaborationFrame');
+    if (iframe.contentWindow) {
+        // 尝试调用 iframe 内的创建房间函数
+        iframe.contentWindow.postMessage({ action: 'createSession' }, '*');
     }
+}
 
-    // 页面加载时检查
-    document.addEventListener('DOMContentLoaded', function() {
-        checkActiveSessions();
+// 加入会话（快捷方式）
+function joinSession() {
+    const roomId = prompt('请输入房间ID：');
+    if (roomId) {
+        const url = `http://localhost:8080/collab?room=${roomId}`;
+        window.open(url, '_blank');
+    }
+}
 
-        // 3秒后自动提示打开协作界面
-        setTimeout(() => {
-            if (confirm('是否要打开实时协作界面？')) {
-                window.open('http://localhost:8080/collab', '_blank');
-            }
-        }, 3000);
-    });
+// 切换全屏
+function toggleFullscreen() {
+    const container = document.querySelector('.collaboration-container');
+    if (!document.fullscreenElement) {
+        container.requestFullscreen().then(() => {
+            // 进入全屏后调整样式
+            container.style.height = '100vh';
+            container.style.margin = '0';
+            container.style.borderRadius = '0';
+        });
+    } else {
+        document.exitFullscreen();
+    }
+}
+
+// 监听全屏变化事件
+document.addEventListener('fullscreenchange', () => {
+    const container = document.querySelector('.collaboration-container');
+    if (!document.fullscreenElement) {
+        // 退出全屏后恢复样式
+        container.style.height = '';
+        container.style.margin = '';
+        container.style.borderRadius = '';
+    }
+});
+
+// 页面加载完成后自动检查 iframe 状态
+document.addEventListener('DOMContentLoaded', function() {
+    // 5秒后如果还在加载，显示提示
+    setTimeout(() => {
+        const loadingState = document.getElementById('loadingState');
+        if (loadingState.style.display !== 'none') {
+            console.log('协作编辑器加载较慢，请检查服务状态');
+        }
+    }, 5000);
+});
 </script>
 {% endblock %}

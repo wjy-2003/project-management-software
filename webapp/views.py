@@ -72,5 +72,7 @@ def git_integration_redirect(request):
 
 
 def realtime_collab_redirect(request):
-    """重定向到独立的实时协作界面"""
-    return render(request, "webapp/realtime_collab.html")
+    """直接重定向到 CollabFrontend 应用"""
+    from django.http import HttpResponseRedirect
+
+    return HttpResponseRedirect("http://localhost:8082/")
