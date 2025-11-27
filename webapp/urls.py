@@ -75,7 +75,6 @@ urlpatterns = [
         name="environment_manage",
     ),
     # Git集成和实时协作（重定向到独立界面）
-    path("git/", views.git_integration_redirect, name="git_integration"),
     path("collab/", views.realtime_collab_redirect, name="realtime_collab"),
     # 登录/登出
     path("logout/", auth_views.LogoutView.as_view(next_page="login"), name="logout"),
@@ -83,6 +82,7 @@ urlpatterns = [
     path("api/collaboration/", include("RealtimeCollaboration.urls")),
     # path("admin/", admin.site.urls),
     path("", include("ProjectManagement.urls")),
+    path("git/", include("GitIntegration.urls")),
 ]
 
 if settings.DEBUG:
