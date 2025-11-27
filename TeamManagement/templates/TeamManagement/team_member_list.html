@@ -76,15 +76,22 @@
                             <td>{{ member.joined_at|date:"Y-m-d H:i" }}</td>
                             {% if can_manage %}
                             <td>
-                                <form method="post"
-                                      action="{% url 'TeamManagement:team-member-remove' team.pk member.pk %}"
-                                      style="display: inline;"
-                                      onsubmit="return confirm('确定要移除该成员吗？');">
-                                    {% csrf_token %}
-                                    <button type="submit" class="btn btn-sm btn-danger">
-                                        <i class="fas fa-user-minus"></i> 移除
-                                    </button>
-                                </form>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{% url 'TeamManagement:team-member-update' team.pk member.pk %}"
+                                       class="btn btn-outline-primary"
+                                       title="编辑成员">
+                                        <i class="fas fa-edit"></i> 编辑
+                                    </a>
+                                    <form method="post"
+                                          action="{% url 'TeamManagement:team-member-remove' team.pk member.pk %}"
+                                          style="display: inline;"
+                                          onsubmit="return confirm('确定要移除该成员吗？');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-outline-danger btn-sm">
+                                            <i class="fas fa-user-minus"></i> 移除
+                                        </button>
+                                    </form>
+                                </div>
                             </td>
                             {% endif %}
                         </tr>

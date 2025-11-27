@@ -1,16 +1,40 @@
 {% extends 'projectmanagement/base.html' %}
 {% load static %}
 
+{% block title %}{{ title }}{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
+    <!-- 面包屑导航 -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'projectmanagement:project_list' %}">项目列表</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'projectmanagement:project_info' project.project_number %}">{{ project.title }}</a></li>
+            <li class="breadcrumb-item active">{{ title }}</li>
+        </ol>
+    </nav>
+
     <div class="row">
-        <div class="col-md-8 offset-md-2">
+        <div class="col-md-10 offset-md-1">
             <div class="card">
-                <div class="card-header">
-                    <h2>{{ title }}</h2>
-                    <small>项目：{{ project.title }} ({{ project.project_number }})</small>
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-tasks"></i> {{ title }}
+                    </h5>
+                    <small class="text-white-50">项目：{{ project.title }} (<code>{{ project.project_number }}</code>)</small>
                 </div>
                 <div class="card-body">
+                    {% if messages %}
+                    <div class="alert-container mb-3">
+                        {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
                     <form method="post">
                         {% csrf_token %}
 
@@ -18,19 +42,25 @@
                         <div class="mb-3">
                             <label for="{{ field.id_for_label }}" class="form-label">
                                 {{ field.label }}
+                                {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
                             </label>
-                            {{ field.errors }}
                             {{ field }}
+                            {% if field.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ field.errors }}
+                            </div>
+                            {% endif %}
                             {% if field.help_text %}
-                            <div class="form-text">{{ field.help_text }}</div>
+                            <small class="form-text text-muted">{{ field.help_text }}</small>
                             {% endif %}
                         </div>
                         {% endfor %}
 
-                        <div class="d-flex justify-content-between">
+                        <hr>
+                        <div class="d-flex justify-content-end gap-2">
                             <a href="{% url 'projectmanagement:project_info' project.project_number %}"
                                class="btn btn-secondary">
-                                <i class="fas fa-arrow-left"></i> 返回
+                                <i class="fas fa-times"></i> 取消
                             </a>
                             <button type="submit" class="btn btn-primary">
                                 <i class="fas fa-save"></i> 保存
@@ -46,8 +76,14 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // 为所有表单控件添加 Bootstrap 类
-    document.querySelectorAll('input[type=text], input[type=number], input[type=date], textarea, select').forEach(function(element) {
-        element.classList.add('form-control');
+    document.querySelectorAll('input[type=text], input[type=number], input[type=date], input[type=datetime-local], textarea, select').forEach(function(element) {
+        if (!element.classList.contains('form-control') && !element.classList.contains('form-select')) {
+            if (element.tagName === 'SELECT') {
+                element.classList.add('form-select');
+            } else {
+                element.classList.add('form-control');
+            }
+        }
     });
 });
 </script>

@@ -1,9 +1,13 @@
+import json
+
 from django.contrib import messages
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.views.decorators.http import require_http_methods
 
 from .forms import DocumentForm, ProjectForm, TaskForm
-from .models import Document, Project, Task
+from .models import Document, Project, Task, TeamMember
 
 
 def project_list(request):
@@ -230,3 +234,60 @@ def document_delete(request, project_number, document_id):
     document.delete()
     messages.success(request, "文档删除成功！")
     return redirect("projectmanagement:project_info", project_number=project_number)
+
+
+@require_http_methods(["GET", "POST"])
+def project_members_manage(request, project_number):
+    """管理项目成员 - 通过选择团队批量添加成员"""
+    from TeamManagement.models import Team as TMTeam
+
+    project = get_object_or_404(Project, project_number=project_number)
+
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            selected_team_ids = data.get("team_ids", [])
+
+            # 获取选中的团队
+            teams = TMTeam.objects.filter(id__in=selected_team_ids).prefetch_related(
+                "members__user"
+            )
+
+            added_count = 0
+            for team in teams:
+                for tm_member in team.members.all():
+                    # 检查该用户是否已经是该项目的成员
+                    existing = project.team_members.filter(user=tm_member.user).exists()
+
+                    if not existing:
+                        # 创建项目团队成员
+                        member = TeamMember.objects.create(
+                            user=tm_member.user,
+                            role=tm_member.role.name if tm_member.role else "成员",
+                            join_date=timezone.now(),
+                        )
+                        project.team_members.add(member)
+                        added_count += 1
+
+            return JsonResponse(
+                {
+                    "success": True,
+                    "message": f"成功添加 {added_count} 名成员到项目",
+                    "added_count": added_count,
+                }
+            )
+
+        except Exception as e:
+            return JsonResponse(
+                {"success": False, "message": f"添加成员失败: {str(e)}"}, status=400
+            )
+
+    # GET 请求 - 显示团队树
+    teams = TMTeam.objects.all().prefetch_related("members__user", "members__role")
+
+    context = {
+        "project": project,
+        "teams": teams,
+    }
+
+    return render(request, "projectmanagement/members_manage.html", context)
