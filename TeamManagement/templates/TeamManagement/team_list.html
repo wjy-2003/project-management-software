@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+
+{% block title %}团队与用户管理{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1><i class="fas fa-users"></i> 团队与用户管理</h1>
+            <p class="text-muted">查看和管理团队及系统用户</p>
+        </div>
+    </div>
+
+    {% if messages %}
+    <div class="alert-container">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <!-- 团队列表 -->
+        <div class="col-lg-7">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list"></i> 我的团队 ({{ teams|length }})
+                    </h5>
+                    <a href="{% url 'TeamManagement:team-create' %}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-plus-circle"></i> 创建团队
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if teams %}
+                    <div class="row">
+                        {% for team in teams %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title">
+                                        <i class="fas fa-users text-primary"></i>
+                                        {{ team.name }}
+                                    </h5>
+                                    <p class="card-text text-muted small">
+                                        {{ team.description|truncatewords:15|default:"暂无描述" }}
+                                    </p>
+                                    <hr>
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <small class="text-muted">
+                                            <i class="fas fa-user"></i> {{ team.owner.get_username }}
+                                        </small>
+                                        <small class="text-muted">
+                                            {{ team.created_at|date:"Y-m-d" }}
+                                        </small>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-white">
+                                    <div class="d-flex justify-content-between">
+                                        <a href="{% url 'TeamManagement:team-detail' team.pk %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i> 详情
+                                        </a>
+                                        <a href="{% url 'TeamManagement:team-member-list' team.pk %}" class="btn btn-sm btn-outline-info">
+                                            <i class="fas fa-users"></i> 成员
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-users fa-4x text-muted mb-3"></i>
+                        <p class="text-muted">您还没有加入任何团队</p>
+                        <a href="{% url 'TeamManagement:team-create' %}" class="btn btn-primary">
+                            <i class="fas fa-plus-circle"></i> 创建第一个团队
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 用户列表 -->
+        <div class="col-lg-5">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user-friends"></i> 系统用户 ({{ users|length }})
+                    </h5>
+                    {% if user.is_superuser %}
+                    <a href="{% url 'TeamManagement:user-create' %}" class="btn btn-sm btn-success">
+                        <i class="fas fa-user-plus"></i> 添加用户
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="card-body" style="max-height: 800px; overflow-y: auto;">
+                    {% if users %}
+                    <div class="list-group list-group-flush">
+                        {% for u in users %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">
+                                        <i class="fas fa-user{% if u.is_superuser %}-shield text-danger{% elif u.is_staff %}-tie text-warning{% endif %}"></i>
+                                        {{ u.get_username }}
+                                        {% if u.is_superuser %}
+                                        <span class="badge bg-danger">
+                                            <i class="fas fa-crown"></i> 超级管理员
+                                        </span>
+                                        {% elif u.is_staff %}
+                                        <span class="badge bg-warning text-dark">
+                                            <i class="fas fa-briefcase"></i> 职员
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-info">
+                                            <i class="fas fa-user"></i> 普通用户
+                                        </span>
+                                        {% endif %}
+                                        {% if not u.is_active %}
+                                        <span class="badge bg-secondary">
+                                            <i class="fas fa-ban"></i> 未激活
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check-circle"></i> 激活
+                                        </span>
+                                        {% endif %}
+                                    </h6>
+                                    {% if u.get_full_name %}
+                                    <p class="mb-1 small text-muted">
+                                        <i class="fas fa-id-card"></i> {{ u.get_full_name }}
+                                    </p>
+                                    {% endif %}
+                                    {% if u.email %}
+                                    <p class="mb-1 small">
+                                        <i class="fas fa-envelope"></i> {{ u.email }}
+                                    </p>
+                                    {% endif %}
+                                    <p class="mb-0 small text-muted">
+                                        <i class="fas fa-calendar-plus"></i> 加入于 {{ u.date_joined|date:"Y-m-d H:i" }}
+                                    </p>
+                                </div>
+                                {% if user.is_superuser %}
+                                <div class="btn-group-vertical btn-group-sm ms-2">
+                                    <a href="{% url 'TeamManagement:user-update' u.pk %}"
+                                       class="btn btn-outline-primary btn-sm"
+                                       title="编辑">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{% url 'TeamManagement:user-change-password' u.pk %}"
+                                       class="btn btn-outline-warning btn-sm"
+                                       title="改密码">
+                                        <i class="fas fa-key"></i>
+                                    </a>
+                                    {% if u != user %}
+                                    <form method="post"
+                                          action="{% url 'TeamManagement:user-delete' u.pk %}"
+                                          style="display: inline;"
+                                          onsubmit="return confirm('确定要删除用户 {{ u.get_username }} 吗？');">
+                                        {% csrf_token %}
+                                        <button type="submit"
+                                                class="btn btn-outline-danger btn-sm w-100"
+                                                title="删除">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-user-slash fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">暂无用户</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

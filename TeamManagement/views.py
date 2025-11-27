@@ -9,7 +9,7 @@ from django.urls import NoReverseMatch, reverse
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_http_methods
 
-from .models import Team, TeamMember
+from .models import Role, Team, TeamMember
 
 User = get_user_model()
 MANAGER_ROLE_HINTS = {"owner", "admin", "manager", "leader", "maintainer", "captain"}
@@ -163,7 +163,10 @@ class TeamMemberForm(forms.ModelForm):
 @login_required
 def team_list(request):
     teams = _visible_teams(request.user)
-    return render(request, "TeamManagement/team_list.html", {"teams": teams})
+    users = User.objects.all().order_by("-date_joined")
+    return render(
+        request, "TeamManagement/team_list.html", {"teams": teams, "users": users}
+    )
 
 
 @login_required
@@ -190,16 +193,32 @@ def team_create(request):
             for flag in ("is_manager", "can_manage", "is_admin"):
                 if flag in TEAM_MEMBER_FIELDS:
                     membership_defaults[flag] = True
-            if ROLE_FIELD_NAME and ROLE_FIELD_NAME in TeamMemberForm.Meta.fields:
+            if ROLE_FIELD_NAME and ROLE_FIELD_NAME in TEAM_MEMBER_FIELDS:
+                # Try to get a default manager role
                 default_role = getattr(TeamMember, "DEFAULT_MANAGER_ROLE", None)
-                if default_role is not None:
-                    membership_defaults[ROLE_FIELD_NAME] = default_role
+                if default_role is None:
+                    # Try to find a role with manager-like name
+                    for role_hint in MANAGER_ROLE_HINTS:
+                        default_role = Role.objects.filter(
+                            name__iexact=role_hint
+                        ).first()
+                        if default_role:
+                            break
+                    # If still no role found, get or create a default manager role
+                    if default_role is None:
+                        default_role, _ = Role.objects.get_or_create(
+                            name="Manager",
+                            defaults={
+                                "description": "Team manager with full permissions"
+                            },
+                        )
+                membership_defaults[ROLE_FIELD_NAME] = default_role
             TeamMember.objects.get_or_create(
                 **{TEAM_FIELD_NAME: team, USER_FIELD_NAME: request.user},
                 defaults=membership_defaults,
             )
         messages.success(request, _("Team created successfully"))
-        return redirect(_safe_reverse("team_detail", pk=team.pk))
+        return redirect(_safe_reverse("team-detail", pk=team.pk))
     return render(request, "TeamManagement/team_form.html", {"form": form})
 
 
@@ -212,7 +231,7 @@ def team_update(request, pk):
     if request.method == "POST" and form.is_valid():
         form.save()
         messages.success(request, _("Team information updated successfully"))
-        return redirect(_safe_reverse("team_detail", pk=team.pk))
+        return redirect(_safe_reverse("team-detail", pk=team.pk))
     return render(
         request, "TeamManagement/team_form.html", {"form": form, "team": team}
     )
@@ -225,7 +244,7 @@ def team_delete(request, pk):
     _ensure_team_permission(request.user, team, manage=True)
     team.delete()
     messages.success(request, _("Team deleted successfully"))
-    return redirect(_safe_reverse("team_list"))
+    return redirect(_safe_reverse("team-list"))
 
 
 @login_required
@@ -238,10 +257,35 @@ def team_member_add(request, pk):
         membership = form.save(commit=False)
         setattr(membership, TEAM_FIELD_NAME, team)
         membership.save()
-        messages.success(request, _("Member added to team successfully"))
-        return redirect(_safe_reverse("team_detail", pk=team.pk))
+        messages.success(request, _("Member added successfully"))
+        return redirect(_safe_reverse("team-detail", pk=team.pk))
     return render(
         request, "TeamManagement/team_member_form.html", {"form": form, "team": team}
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def team_member_update(request, pk, member_id):
+    """编辑团队成员"""
+    team = get_object_or_404(Team, pk=pk)
+    _ensure_team_permission(request.user, team, manage=True)
+    membership = get_object_or_404(
+        TeamMember.objects.select_related(*SELECT_RELATED_FIELDS),
+        pk=member_id,
+        **{TEAM_FIELD_NAME: team},
+    )
+
+    form = TeamMemberForm(request.POST or None, instance=membership, team=team)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, _("Member updated successfully"))
+        return redirect("TeamManagement:team-member-list", pk=team.pk)
+
+    return render(
+        request,
+        "TeamManagement/team_member_form.html",
+        {"form": form, "team": team, "member": membership, "action": "update"},
     )
 
 
@@ -262,7 +306,7 @@ def team_member_remove(request, pk, member_id):
         raise PermissionDenied(_("Cannot remove yourself."))
     membership.delete()
     messages.success(request, _("Member removed successfully"))
-    return redirect(_safe_reverse("team_detail", pk=team.pk))
+    return redirect(_safe_reverse("team-detail", pk=team.pk))
 
 
 @login_required
@@ -291,4 +335,157 @@ def team_member_list(request, pk):
             "members": members,
             "can_manage": can_manage,
         },
+    )
+
+
+# 用户管理视图
+class UserCreationForm(forms.ModelForm):
+    password1 = forms.CharField(
+        label="密码", widget=forms.PasswordInput(attrs={"class": "form-control"})
+    )
+    password2 = forms.CharField(
+        label="确认密码", widget=forms.PasswordInput(attrs={"class": "form-control"})
+    )
+
+    class Meta:
+        model = User
+        fields = ("username", "email", "first_name", "last_name")
+        widgets = {
+            "username": forms.TextInput(attrs={"class": "form-control"}),
+            "email": forms.EmailInput(attrs={"class": "form-control"}),
+            "first_name": forms.TextInput(attrs={"class": "form-control"}),
+            "last_name": forms.TextInput(attrs={"class": "form-control"}),
+        }
+
+    def clean_password2(self):
+        password1 = self.cleaned_data.get("password1")
+        password2 = self.cleaned_data.get("password2")
+        if password1 and password2 and password1 != password2:
+            raise forms.ValidationError("两次输入的密码不一致")
+        return password2
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.set_password(self.cleaned_data["password1"])
+        user.is_active = True  # 确保新用户默认激活
+        user.is_staff = True  # 允许用户登录系统（Django Admin要求）
+        if commit:
+            user.save()
+        return user
+
+
+class UserUpdateForm(forms.ModelForm):
+    is_staff = forms.BooleanField(
+        label="职员状态",
+        required=False,
+        help_text="允许用户访问管理后台",
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+    )
+    is_superuser = forms.BooleanField(
+        label="超级用户状态",
+        required=False,
+        help_text="拥有所有权限，无需显式分配",
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+    )
+
+    class Meta:
+        model = User
+        fields = (
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "is_active",
+            "is_staff",
+            "is_superuser",
+        )
+        widgets = {
+            "username": forms.TextInput(attrs={"class": "form-control"}),
+            "email": forms.EmailInput(attrs={"class": "form-control"}),
+            "first_name": forms.TextInput(attrs={"class": "form-control"}),
+            "last_name": forms.TextInput(attrs={"class": "form-control"}),
+        }
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def user_create(request):
+    """创建新用户"""
+    if not request.user.is_superuser:
+        raise PermissionDenied("只有管理员可以创建用户")
+
+    form = UserCreationForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, _("用户创建成功"))
+        return redirect("TeamManagement:team-list")
+    return render(
+        request, "TeamManagement/user_form.html", {"form": form, "action": "create"}
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def user_update(request, user_id):
+    """更新用户信息"""
+    if not request.user.is_superuser:
+        raise PermissionDenied("只有管理员可以编辑用户")
+
+    user = get_object_or_404(User, pk=user_id)
+    form = UserUpdateForm(request.POST or None, instance=user)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, _("用户信息已更新"))
+        return redirect("TeamManagement:team-list")
+    return render(
+        request,
+        "TeamManagement/user_form.html",
+        {"form": form, "action": "update", "edited_user": user},
+    )
+
+
+@login_required
+@require_http_methods(["POST"])
+def user_delete(request, user_id):
+    """删除用户"""
+    if not request.user.is_superuser:
+        raise PermissionDenied("只有管理员可以删除用户")
+
+    user = get_object_or_404(User, pk=user_id)
+    if user == request.user:
+        messages.error(request, _("不能删除自己的账号"))
+        return redirect("TeamManagement:team-list")
+
+    username = user.get_username()
+    user.delete()
+    messages.success(request, _(f"用户 {username} 已被删除"))
+    return redirect("TeamManagement:team-list")
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def user_change_password(request, user_id):
+    """修改用户密码"""
+    if not request.user.is_superuser:
+        raise PermissionDenied("只有管理员可以修改用户密码")
+
+    user = get_object_or_404(User, pk=user_id)
+
+    if request.method == "POST":
+        password1 = request.POST.get("password1")
+        password2 = request.POST.get("password2")
+
+        if password1 and password2:
+            if password1 == password2:
+                user.set_password(password1)
+                user.save()
+                messages.success(request, _(f"用户 {user.get_username()} 的密码已更新"))
+                return redirect("TeamManagement:team-list")
+            else:
+                messages.error(request, _("两次输入的密码不一致"))
+        else:
+            messages.error(request, _("请输入密码"))
+
+    return render(
+        request, "TeamManagement/user_password_form.html", {"edited_user": user}
     )
