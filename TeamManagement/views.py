@@ -280,6 +280,7 @@ def team_member_list(request, pk):
         _ensure_team_permission(request.user, team, manage=True)
         can_manage = True
     except PermissionDenied:
+        # User does not have management permissions; can_manage remains False.
         pass
 
     return render(

@@ -17,17 +17,15 @@ Including another URLconf
 
 from django.conf import settings
 from django.conf.urls.static import static
-from django.contrib import admin
 from django.urls import include, path
 from django.views.generic import RedirectView
 
-# 设置 admin 登录后的重定向
-admin.site.site_header = "项目管理系统"
-admin.site.index_title = "管理后台"
+from .admin import custom_admin_site
 
 urlpatterns = [
     path("", RedirectView.as_view(url="/login/", permanent=False)),
-    path("login/", admin.site.urls),
+    # 使用自定义的 AdminSite 处理登录与后台入口
+    path("login/", custom_admin_site.urls),
     path("admin/", RedirectView.as_view(url="/projects/", permanent=False)),
     path("api/collaboration/", include("RealtimeCollaboration.urls")),
     path("git/", include("GitIntegration.urls")),
