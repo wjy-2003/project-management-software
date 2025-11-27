@@ -19,7 +19,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
-from django.urls import path
+from django.urls import include, path
 
 from . import views
 
@@ -79,6 +79,10 @@ urlpatterns = [
     path("collab/", views.realtime_collab_redirect, name="realtime_collab"),
     # 登录/登出
     path("logout/", auth_views.LogoutView.as_view(next_page="login"), name="logout"),
+    path("login/", admin.site.urls),
+    path("api/collaboration/", include("RealtimeCollaboration.urls")),
+    # path("admin/", admin.site.urls),
+    path("", include("ProjectManagement.urls")),
 ]
 
 if settings.DEBUG:
