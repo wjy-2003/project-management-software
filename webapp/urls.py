@@ -22,8 +22,7 @@ from django.urls import include, path
 from django.views.generic import RedirectView
 
 # 设置 admin 登录后的重定向
-admin.site.site_header = "项目管理系统"
-admin.site.index_title = "管理后台"
+
 
 urlpatterns = [
     path("", RedirectView.as_view(url="/login/", permanent=False)),

@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.shortcuts import redirect
 
-# from django.urls import path
+
 
 
 class CustomAdminSite(admin.AdminSite):
@@ -12,8 +12,8 @@ class CustomAdminSite(admin.AdminSite):
         return redirect("/projects/")
 
 
-# 替换默认的 admin site
-admin.site = CustomAdminSite()
-admin.site.site_header = "项目管理系统"
-admin.site.site_title = "项目管理"
-admin.site.index_title = "管理后台"
+# 创建自定义 admin site 实例
+custom_admin_site = CustomAdminSite()
+custom_admin_site.site_header = "项目管理系统"
+custom_admin_site.site_title = "项目管理"
+custom_admin_site.index_title = "管理后台"
