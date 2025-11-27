@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -38,6 +39,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "GitIntegration",
     "ProjectManagement",
 ]
 
@@ -127,6 +129,32 @@ STATIC_URL = "static/"
 # Media files (Uploaded files)
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+# Git Integration Security Settings
+# https://docs.djangoproject.com/en/5.2/topics/settings/
+
+# Default path for git repositories (can be overridden by environment variable)
+DEFAULT_GIT_REPOSITORY_PATH = Path(
+    os.environ.get("DEFAULT_GIT_REPOSITORY_PATH", str(BASE_DIR))
+)
+
+# Allowed base directories for git repositories (security measure)
+# Users can only set git paths within these directories
+ALLOWED_GIT_REPOSITORY_BASES = [
+    BASE_DIR,  # Project root directory
+    # Additional allowed bases can be configured via environment variable
+    *[
+        Path(p.strip())
+        for p in os.environ.get("ALLOWED_GIT_REPOSITORY_BASES", "").split(",")
+        if p.strip()
+    ],
+]
+
+# Maximum number of git operations per hour (rate limiting)
+GIT_OPERATIONS_RATE_LIMIT = 100
+
+# Enable logging for git operations
+GIT_OPERATION_LOGGING = True
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

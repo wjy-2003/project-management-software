@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Git Commit - Project Management</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 300px;
+            background: #252526;
+            border-right: 1px solid #3e3e42;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 15px;
+            background: #2d2d30;
+            border-bottom: 1px solid #3e3e42;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .branch-info {
+            color: #007acc;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .files-container {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .file-section {
+            margin-bottom: 15px;
+        }
+
+        .section-header {
+            padding: 10px 15px;
+            background: #2d2d30;
+            border-bottom: 1px solid #3e3e42;
+            font-size: 12px;
+            font-weight: 600;
+            color: #cccccc;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .section-header button {
+            background: none;
+            border: none;
+            color: #cccccc;
+            cursor: pointer;
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 3px;
+        }
+
+        .section-header button:hover {
+            background: #3e3e42;
+        }
+
+        .file-item {
+            padding: 8px 15px;
+            border-bottom: 1px solid #3e3e42;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            font-size: 13px;
+        }
+
+        .file-item:hover {
+            background: #2a2d2e;
+        }
+
+        .file-item.selected {
+            background: #094771;
+        }
+
+        .file-icon {
+            margin-right: 8px;
+            font-size: 14px;
+        }
+
+        .file-status {
+            margin-left: auto;
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            background: #3e3e42;
+        }
+
+        .file-status.modified {
+            background: #d16969;
+            color: white;
+        }
+
+        .file-status.added {
+            background: #4ec9b0;
+            color: white;
+        }
+
+        .file-status.deleted {
+            background: #c586c0;
+            color: white;
+        }
+
+        .file-status.untracked {
+            background: #519aba;
+            color: white;
+        }
+
+        .checkbox {
+            margin-right: 8px;
+            cursor: pointer;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .editor-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #monaco-editor {
+            flex: 1;
+            min-height: 0;
+        }
+
+        /* Commit Section */
+        .commit-section {
+            border-top: 1px solid #3e3e42;
+            background: #252526;
+            padding: 15px;
+        }
+
+        .commit-message-input {
+            width: 100%;
+            background: #3c3c3c;
+            border: 1px solid #3e3e42;
+            color: #d4d4d4;
+            padding: 10px;
+            border-radius: 3px;
+            font-size: 13px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        .commit-message-input:focus {
+            outline: none;
+            border-color: #007acc;
+        }
+
+        .commit-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        .commit-info {
+            font-size: 11px;
+            color: #858585;
+        }
+
+        .commit-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 6px 16px;
+            border-radius: 3px;
+            border: none;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .btn-primary {
+            background: #007acc;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #1177bb;
+        }
+
+        .btn-primary:disabled {
+            background: #3e3e42;
+            color: #858585;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #3e3e42;
+            color: #cccccc;
+        }
+
+        .btn-secondary:hover {
+            background: #4a4a4a;
+        }
+
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 4px;
+            color: white;
+            font-size: 14px;
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: all 0.3s ease;
+            z-index: 1000;
+            max-width: 400px;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .toast.success {
+            background: #4ec9b0;
+        }
+
+        .toast.error {
+            background: #d16969;
+        }
+
+        .toast.info {
+            background: #007acc;
+        }
+
+        /* Loading */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #858585;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        /* Diff View */
+        .diff-view {
+            background: #1e1e1e;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 12px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            padding: 15px;
+            overflow-x: auto;
+        }
+
+        .diff-line-added {
+            background: #033f2a;
+            color: #4ec9b0;
+        }
+
+        .diff-line-removed {
+            background: #3d2525;
+            color: #d16969;
+        }
+
+        .diff-context {
+            color: #d4d4d4;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>Git Changes</div>
+                    <button onclick="window.location.href='/git/graph/'" style="background: #007acc; color: white; border: none; padding: 4px 8px; border-radius: 3px; font-size: 11px; cursor: pointer;">Back to Graph</button>
+                </div>
+                <div class="branch-info" id="current-branch">Loading...</div>
+                <div class="git-repo-info" id="git-repo-info" style="margin-top: 5px; font-size: 11px; color: #666; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Default repository</div>
+            </div>
+
+            <div class="files-container">
+                <!-- Staged Changes -->
+                <div class="file-section" id="staged-section" style="display: none;">
+                    <div class="section-header">
+                        <span>Staged Changes (<span id="staged-count">0</span>)</span>
+                        <button onclick="unstageAll()">Unstage All</button>
+                    </div>
+                    <div id="staged-files"></div>
+                </div>
+
+                <!-- Changes -->
+                <div class="file-section" id="changes-section" style="display: none;">
+                    <div class="section-header">
+                        <span>Changes (<span id="changes-count">0</span>)</span>
+                        <button onclick="stageAll()">Stage All</button>
+                    </div>
+                    <div id="unstaged-files"></div>
+                </div>
+
+                <!-- Untracked Files -->
+                <div class="file-section" id="untracked-section" style="display: none;">
+                    <div class="section-header">
+                        <span>Untracked Files (<span id="untracked-count">0</span>)</span>
+                        <button onclick="stageAllUntracked()">Stage All</button>
+                    </div>
+                    <div id="untracked-files"></div>
+                </div>
+
+                <!-- Loading -->
+                <div class="loading" id="loading">Loading...</div>
+
+                <!-- Empty State -->
+                <div style="padding: 20px; text-align: center; color: #858585; display: none;" id="empty-state">
+                    No changes detected
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="editor-container">
+                <div id="monaco-editor"></div>
+            </div>
+
+            <div class="commit-section">
+                <textarea
+                    id="commit-message"
+                    class="commit-message-input"
+                    placeholder="Commit message"
+                ></textarea>
+                <div class="commit-actions">
+                    <div class="commit-info">
+                        <span id="staged-summary">No files staged</span>
+                    </div>
+                    <div class="commit-buttons">
+                        <button class="btn btn-secondary" onclick="discardChanges()">Discard</button>
+                        <button class="btn btn-primary" id="commit-btn" onclick="commit()" disabled>Commit</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast" class="toast"></div>
+
+    <!-- Monaco Editor -->
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
+    <script>
+        let diffEditor;
+        let singleEditor;
+        let editor;
+        let currentStatus = null;
+        let selectedFile = null;
+
+        // Initialize Monaco Editor
+        require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs' } });
+        require(['vs/editor/editor.main'], function () {
+            // Create diff editor container
+            const container = document.getElementById('monaco-editor');
+            container.innerHTML = `
+                <div style="display: flex; height: 100%;">
+                    <div id="diff-editor" style="flex: 1;"></div>
+                    <div id="original-editor" style="flex: 1; display: none;"></div>
+                </div>
+            `;
+
+            // Create diff editor for side-by-side comparison
+            diffEditor = monaco.editor.createDiffEditor(document.getElementById('diff-editor'), {
+                theme: 'vs-dark',
+                automaticLayout: true,
+                minimap: { enabled: false },
+                scrollBeyondLastLine: false,
+                fontSize: 12,
+                fontFamily: 'Consolas, Monaco, monospace',
+                renderSideBySide: true,
+                renderWhitespace: 'selection',
+                wordWrap: 'on',
+                ignoreTrimWhitespace: false,
+                renderLineHighlight: 'none',
+                diffAlgorithm: 'advanced'
+            });
+
+            // Create single editor for untracked files
+            singleEditor = monaco.editor.create(document.getElementById('original-editor'), {
+                value: '',
+                language: 'plaintext',
+                theme: 'vs-dark',
+                readOnly: false,
+                automaticLayout: true,
+                minimap: { enabled: false },
+                scrollBeyondLastLine: false,
+                fontSize: 12,
+                fontFamily: 'Consolas, Monaco, monospace',
+                lineNumbers: 'on',
+                renderWhitespace: 'selection',
+                wordWrap: 'on'
+            });
+
+            editor = diffEditor; // Set default editor reference
+
+            // Load initial status
+            loadStatus();
+        });
+
+        // Load git status
+        function loadStatus() {
+            document.getElementById('loading').classList.add('show');
+
+            fetch('/git/status/api/')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        currentStatus = data.status;
+                        displayStatus(data.status);
+                        updateCommitButton();
+                    } else {
+                        showToast(data.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    showToast('Failed to load git status', 'error');
+                })
+                .finally(() => {
+                    document.getElementById('loading').classList.remove('show');
+                });
+
+            // Also load current git path
+            loadGitPath();
+        }
+
+        // Load current git path
+        function loadGitPath() {
+            fetch('/git/get-path/')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const repoInfo = document.getElementById('git-repo-info');
+                        repoInfo.textContent = data.git_path;
+                        repoInfo.title = data.git_path;
+                    }
+                })
+                .catch(error => {
+                    console.error('Failed to load git path:', error);
+                });
+        }
+
+        // Display status in sidebar
+        function displayStatus(status) {
+            // Update branch info
+            document.getElementById('current-branch').textContent = status.branch || 'unknown';
+
+            // Clear existing files
+            document.getElementById('staged-files').innerHTML = '';
+            document.getElementById('unstaged-files').innerHTML = '';
+            document.getElementById('untracked-files').innerHTML = '';
+
+            // Show/hide sections
+            const stagedSection = document.getElementById('staged-section');
+            const changesSection = document.getElementById('changes-section');
+            const untrackedSection = document.getElementById('untracked-section');
+            const emptyState = document.getElementById('empty-state');
+
+            stagedSection.style.display = status.staged.length > 0 ? 'block' : 'none';
+            changesSection.style.display = status.unstaged.length > 0 ? 'block' : 'none';
+            untrackedSection.style.display = status.untracked.length > 0 ? 'block' : 'none';
+            emptyState.style.display = (status.staged.length + status.unstaged.length + status.untracked.length) === 0 ? 'block' : 'none';
+
+            // Display staged files
+            document.getElementById('staged-count').textContent = status.staged.length;
+            status.staged.forEach(file => {
+                addFileToList('staged-files', file, true);
+            });
+
+            // Display unstaged files
+            document.getElementById('changes-count').textContent = status.unstaged.length;
+            status.unstaged.forEach(file => {
+                addFileToList('unstaged-files', file, false);
+            });
+
+            // Display untracked files
+            document.getElementById('untracked-count').textContent = status.untracked.length;
+            status.untracked.forEach(file => {
+                addFileToList('untracked-files', file, false);
+            });
+
+            // Update staged summary
+            updateStagedSummary();
+        }
+
+        // Add file to the list
+        function addFileToList(containerId, file, isStaged) {
+            const container = document.getElementById(containerId);
+            const fileItem = document.createElement('div');
+            fileItem.className = 'file-item';
+            fileItem.dataset.path = file.path;
+
+            // Determine icon and status based on file status
+            let icon = '📄';
+            let statusClass = file.status;
+
+            switch (file.status) {
+                case 'modified':
+                    icon = '📝';
+                    break;
+                case 'added':
+                    icon = '➕';
+                    statusClass = 'added';
+                    break;
+                case 'deleted':
+                    icon = '❌';
+                    statusClass = 'deleted';
+                    break;
+                case 'untracked':
+                    icon = '❓';
+                    statusClass = 'untracked';
+                    break;
+                case 'renamed':
+                    icon = '🔄';
+                    break;
+                case 'copied':
+                    icon = '📋';
+                    break;
+            }
+
+            fileItem.innerHTML = `
+                <input type="checkbox" class="checkbox" ${isStaged ? 'checked' : ''}
+                       onchange="toggleFileStaging('${file.path}', this.checked, ${isStaged})">
+                <span class="file-icon">${icon}</span>
+                <span class="file-name">${file.path}</span>
+                <span class="file-status ${statusClass}">${file.status}</span>
+            `;
+
+            fileItem.onclick = function(e) {
+                if (e.target.type !== 'checkbox') {
+                    selectFile(file);
+                }
+            };
+
+            container.appendChild(fileItem);
+        }
+
+        // Select a file and show its diff
+        function selectFile(file) {
+            // Remove previous selection
+            document.querySelectorAll('.file-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+
+            // Add selection to current item
+            const selectedItem = document.querySelector(`[data-path="${file.path}"]`);
+            if (selectedItem) {
+                selectedItem.classList.add('selected');
+            }
+
+            selectedFile = file;
+
+            // Show diff in editor
+            if (file.status === 'untracked' && file.content) {
+                // For untracked files, show the full content in single editor
+                showSingleFile(file.content, file.path);
+            } else if (file.diff) {
+                // For modified files, show the diff in diff editor
+                showDiffInEditor(file.diff, file.path);
+            } else {
+                showNoContent();
+            }
+        }
+
+        // Show diff in Monaco diff editor
+        function showDiffInEditor(diffText, filePath) {
+            // Show diff editor, hide single editor
+            document.getElementById('diff-editor').style.display = 'block';
+            document.getElementById('original-editor').style.display = 'none';
+            editor = diffEditor;
+
+            // Parse diff text to extract original and modified content
+            const lines = diffText.split('\n');
+            let originalLines = [];
+            let modifiedLines = [];
+            let inOriginal = false;
+            let inModified = false;
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+
+                if (line.startsWith('---')) {
+                    // Skip file headers
+                    continue;
+                } else if (line.startsWith('+++')) {
+                    // Skip file headers
+                    continue;
+                } else if (line.startsWith('@@')) {
+                    // Reset for new hunk
+                    inOriginal = false;
+                    inModified = false;
+                } else if (line.startsWith('-')) {
+                    // Removed line (exists in original)
+                    originalLines.push(line.substring(1));
+                    inOriginal = true;
+                    inModified = false;
+                } else if (line.startsWith('+')) {
+                    // Added line (exists in modified)
+                    modifiedLines.push(line.substring(1));
+                    inOriginal = false;
+                    inModified = true;
+                } else if (line.startsWith(' ')) {
+                    // Context line (exists in both)
+                    const contextLine = line.substring(1);
+                    originalLines.push(contextLine);
+                    modifiedLines.push(contextLine);
+                }
+            }
+
+            const originalContent = originalLines.join('\n');
+            const modifiedContent = modifiedLines.join('\n');
+
+            // Set the diff model
+            const language = getLanguageFromPath(filePath);
+            const originalModel = monaco.editor.createModel(originalContent, language);
+            const modifiedModel = monaco.editor.createModel(modifiedContent, language);
+
+            diffEditor.setModel({
+                original: originalModel,
+                modified: modifiedModel
+            });
+        }
+
+        // Show single file content in editor
+        function showSingleFile(content, filePath) {
+            // Show single editor, hide diff editor
+            document.getElementById('diff-editor').style.display = 'none';
+            document.getElementById('original-editor').style.display = 'block';
+            editor = singleEditor;
+
+            const language = getLanguageFromPath(filePath);
+            singleEditor.setValue(content);
+            singleEditor.updateOptions({
+                language: language,
+                readOnly: false
+            });
+        }
+
+        // Show no content placeholder
+        function showNoContent() {
+            // Show single editor, hide diff editor
+            document.getElementById('diff-editor').style.display = 'none';
+            document.getElementById('original-editor').style.display = 'block';
+            editor = singleEditor;
+
+            singleEditor.setValue('(No content to display)');
+            singleEditor.updateOptions({
+                language: 'plaintext',
+                readOnly: true
+            });
+        }
+
+        // Get language from file path
+        function getLanguageFromPath(filePath) {
+            const ext = filePath.split('.').pop().toLowerCase();
+            const languageMap = {
+                'js': 'javascript',
+                'jsx': 'javascript',
+                'ts': 'typescript',
+                'tsx': 'typescript',
+                'py': 'python',
+                'html': 'html',
+                'css': 'css',
+                'scss': 'scss',
+                'sass': 'sass',
+                'json': 'json',
+                'xml': 'xml',
+                'yaml': 'yaml',
+                'yml': 'yaml',
+                'md': 'markdown',
+                'sql': 'sql',
+                'sh': 'shell',
+                'bash': 'shell',
+                'zsh': 'shell',
+                'fish': 'shell',
+                'java': 'java',
+                'c': 'c',
+                'cpp': 'cpp',
+                'cc': 'cpp',
+                'cxx': 'cpp',
+                'h': 'c',
+                'hpp': 'cpp',
+                'cs': 'csharp',
+                'php': 'php',
+                'rb': 'ruby',
+                'go': 'go',
+                'rs': 'rust',
+                'swift': 'swift',
+                'kt': 'kotlin',
+                'dart': 'dart',
+                'vue': 'html',
+                'svelte': 'html'
+            };
+
+            return languageMap[ext] || 'plaintext';
+        }
+
+        // Toggle file staging
+        function toggleFileStaging(filePath, shouldStage, currentlyStaged) {
+            const action = shouldStage ? 'stage' : 'unstage';
+
+            fetch('/git/stage/api/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    files: [filePath],
+                    stage: shouldStage
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    loadStatus(); // Reload status
+                } else {
+                    showToast(data.message, 'error');
+                    // Restore checkbox state on error
+                    const checkbox = document.querySelector(`[data-path="${filePath}"] .checkbox`);
+                    if (checkbox) {
+                        checkbox.checked = currentlyStaged;
+                    }
+                }
+            })
+            .catch(error => {
+                showToast('Failed to ' + action + ' file', 'error');
+                // Restore checkbox state on error
+                const checkbox = document.querySelector(`[data-path="${filePath}"] .checkbox`);
+                if (checkbox) {
+                    checkbox.checked = currentlyStaged;
+                }
+            });
+        }
+
+        // Stage all files
+        function stageAll() {
+            const unstagedFiles = currentStatus ? currentStatus.unstaged.map(f => f.path) : [];
+            if (unstagedFiles.length === 0) return;
+
+            fetch('/git/stage/api/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    files: unstagedFiles,
+                    stage: true
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    loadStatus();
+                } else {
+                    showToast(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showToast('Failed to stage files', 'error');
+            });
+        }
+
+        // Stage all untracked files
+        function stageAllUntracked() {
+            const untrackedFiles = currentStatus ? currentStatus.untracked.map(f => f.path) : [];
+            if (untrackedFiles.length === 0) return;
+
+            fetch('/git/stage/api/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    files: untrackedFiles,
+                    stage: true
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    loadStatus();
+                } else {
+                    showToast(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showToast('Failed to stage files', 'error');
+            });
+        }
+
+        // Unstage all files
+        function unstageAll() {
+            const stagedFiles = currentStatus ? currentStatus.staged.map(f => f.path) : [];
+            if (stagedFiles.length === 0) return;
+
+            fetch('/git/stage/api/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    files: stagedFiles,
+                    stage: false
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    loadStatus();
+                } else {
+                    showToast(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showToast('Failed to unstage files', 'error');
+            });
+        }
+
+        // Discard changes
+        function discardChanges() {
+            if (!selectedFile) {
+                showToast('No file selected', 'error');
+                return;
+            }
+
+            const fileStatus = selectedFile.is_staged ? 'staged' : 'unstaged';
+            const actionText = fileStatus === 'staged' ? 'and unstage' : 'discard';
+
+            if (confirm(`Are you sure you want to ${actionText} changes to ${selectedFile.path}? This cannot be undone.`)) {
+                fetch('/git/discard/api/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        files: [selectedFile.path]
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast(data.message, 'success');
+                        loadStatus(); // Reload status to update the file list
+                        editor.setValue(''); // Clear editor
+                    } else {
+                        showToast(data.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    showToast('Failed to discard changes', 'error');
+                });
+            }
+        }
+
+        // Commit changes
+        function commit() {
+            const message = document.getElementById('commit-message').value.trim();
+
+            if (!message) {
+                showToast('Please enter a commit message', 'error');
+                document.getElementById('commit-message').focus();
+                return;
+            }
+
+            if (!currentStatus || currentStatus.staged.length === 0) {
+                showToast('No files staged for commit', 'error');
+                return;
+            }
+
+            fetch('/git/commit/api/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    message: message
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(`Successfully committed ${data.commit_sha}`, 'success');
+                    document.getElementById('commit-message').value = '';
+                    loadStatus();
+                    if (singleEditor) singleEditor.setValue('');
+                    if (diffEditor) diffEditor.setModel({ original: null, modified: null });
+                } else {
+                    showToast(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showToast('Failed to commit changes', 'error');
+            });
+        }
+
+        // Update staged summary
+        function updateStagedSummary() {
+            const stagedCount = currentStatus ? currentStatus.staged.length : 0;
+            const summary = document.getElementById('staged-summary');
+
+            if (stagedCount === 0) {
+                summary.textContent = 'No files staged';
+            } else {
+                summary.textContent = `${stagedCount} file${stagedCount !== 1 ? 's' : ''} staged`;
+            }
+        }
+
+        // Update commit button state
+        function updateCommitButton() {
+            const commitBtn = document.getElementById('commit-btn');
+            const hasStaged = currentStatus && currentStatus.staged.length > 0;
+            const hasMessage = document.getElementById('commit-message').value.trim().length > 0;
+
+            commitBtn.disabled = !hasStaged || !hasMessage;
+        }
+
+        // Monitor commit message input
+        document.addEventListener('DOMContentLoaded', function() {
+            const messageInput = document.getElementById('commit-message');
+            messageInput.addEventListener('input', updateCommitButton);
+
+            // Add keyboard shortcuts
+            document.addEventListener('keydown', function(e) {
+                // Ctrl/Cmd + Enter to commit
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    e.preventDefault();
+                    if (!document.getElementById('commit-btn').disabled) {
+                        commit();
+                    }
+                }
+                // Ctrl/Cmd + R to refresh
+                if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+                    e.preventDefault();
+                    loadStatus();
+                }
+            });
+        });
+
+        // Toast notification
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type}`;
+            toast.classList.add('show');
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // Get CSRF cookie
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    </script>
+</body>
+</html>

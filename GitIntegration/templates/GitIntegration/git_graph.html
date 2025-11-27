@@ -1,0 +1,2055 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Git Graph Visualization</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .git-path-selector {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+
+        .git-path-input {
+            padding: 6px 10px;
+            border: 1px solid #34495e;
+            border-radius: 3px;
+            background: #2c3e50;
+            color: white;
+            font-size: 13px;
+            min-width: 300px;
+        }
+
+        .git-path-input:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .git-path-btn {
+            padding: 6px 12px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.2s;
+        }
+
+        .git-path-btn:hover {
+            background: #2980b9;
+        }
+
+        .current-git-path {
+            font-size: 11px;
+            color: #bdc3c7;
+            margin-left: 10px;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .controls select, .controls button {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            background: #34495e;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .controls select:hover, .controls button:hover {
+            background: #4a5f7f;
+        }
+
+        #graph-container {
+            position: relative;
+            overflow: auto;
+            height: 80vh;
+            min-height: 400px;
+            background: #fafafa;
+        }
+
+        svg {
+            display: block;
+            margin: 0 auto;
+            min-height: 100%;
+        }
+
+        .branch-line {
+            fill: none;
+            stroke-width: 2;
+        }
+
+        .commit-edge {
+            fill: none;
+            stroke-width: 2;
+            opacity: 0.8;
+        }
+
+        .commit-edge.merge {
+            stroke-width: 2.5;
+            opacity: 0.9;
+        }
+
+        .commit-node {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .commit-node:hover {
+            filter: brightness(1.2);
+        }
+
+        .commit-node.normal {
+            stroke-width: 2;
+        }
+
+        .commit-node.merge {
+            stroke-width: 3;
+            stroke: #2c3e50;
+        }
+
+        .commit-node.selected {
+            stroke: #f39c12;
+            stroke-width: 3;
+            filter: drop-shadow(0 0 5px #f39c12);
+        }
+
+        .commit-label {
+            font-size: 12px;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        .leader-line {
+            stroke: #bdc3c7;
+            stroke-width: 1;
+            stroke-dasharray: 2,2;
+            fill: none;
+        }
+
+        .commit-text-area {
+            background: white;
+            padding: 4px 8px;
+            border: 1px solid #ecf0f1;
+            border-radius: 3px;
+        }
+
+        .commit-sha {
+            font-size: 11px;
+            fill: #7f8c8d;
+        }
+
+        .commit-author {
+            font-size: 11px;
+            fill: #95a5a6;
+        }
+
+        .tooltip {
+            position: absolute;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 1000;
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+            font-size: 18px;
+            color: #7f8c8d;
+        }
+
+        .error {
+            color: #e74c3c;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .stats {
+            padding: 15px 20px;
+            background: #ecf0f1;
+            border-top: 1px solid #bdc3c7;
+            display: flex;
+            gap: 20px;
+            font-size: 14px;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .stat-label {
+            color: #7f8c8d;
+        }
+
+        .stat-value {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .branch-legend {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .branch-legend h3 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            color: #2c3e50;
+        }
+
+        .branch-legend-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+            font-size: 12px;
+            cursor: pointer;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+
+        .branch-legend-item:hover {
+            background: #ecf0f1;
+        }
+
+        .branch-legend-item.current {
+            background: #e8f4f8;
+            font-weight: bold;
+        }
+
+        .branch-color-box {
+            width: 20px;
+            height: 3px;
+            margin-right: 8px;
+            border-radius: 2px;
+        }
+
+        .branch-create-item {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+            font-size: 12px;
+            padding: 5px;
+            border-top: 1px solid #ecf0f1;
+        }
+
+        .branch-create-input {
+            flex: 1;
+            padding: 4px 8px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            margin-right: 5px;
+            font-size: 12px;
+        }
+
+        .branch-create-btn {
+            padding: 4px 10px;
+            background: #2ecc71;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.2s;
+        }
+
+        .branch-create-btn:hover {
+            background: #27ae60;
+        }
+
+        /* Context Menu Styles */
+        .context-menu {
+            position: absolute;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            padding: 5px 0;
+            z-index: 1000;
+            display: none;
+        }
+
+        .context-menu-item {
+            padding: 8px 20px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #2c3e50;
+        }
+
+        .context-menu-item:hover {
+            background: #f0f0f0;
+        }
+
+        .context-menu-divider {
+            height: 1px;
+            background: #ecf0f1;
+            margin: 5px 0;
+        }
+
+        /* Branch Selection Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            min-width: 400px;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            color: #2c3e50;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #95a5a6;
+        }
+
+        .close-btn:hover {
+            color: #7f8c8d;
+        }
+
+        .branch-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .branch-list-item {
+            padding: 10px;
+            border: 1px solid #ecf0f1;
+            border-radius: 4px;
+            margin-bottom: 5px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .branch-list-item:hover {
+            background: #f8f9fa;
+            border-color: #3498db;
+        }
+
+        .branch-list-item.current {
+            background: #e8f4f8;
+            border-color: #3498db;
+            font-weight: bold;
+        }
+
+        .branch-badge {
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            background: #ecf0f1;
+            color: #7f8c8d;
+        }
+
+        /* Selection Box */
+        .selection-box {
+            fill: none;
+            stroke: #3498db;
+            stroke-width: 1;
+            stroke-dasharray: 5,5;
+            fill: rgba(52, 152, 219, 0.1);
+            pointer-events: none;
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            display: none;
+            gap: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            z-index: 1000;
+        }
+
+        .action-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .action-btn.primary {
+            background: #3498db;
+            color: white;
+        }
+
+        .action-btn.danger {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .action-btn:hover {
+            opacity: 0.9;
+        }
+
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 4px;
+            color: white;
+            font-size: 14px;
+            z-index: 3000;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .toast.success {
+            background: #2ecc71;
+        }
+
+        .toast.error {
+            background: #e74c3c;
+        }
+
+        .toast.warning {
+            background: #f39c12;
+        }
+
+        .toast.show {
+            opacity: 1;
+        }
+
+        /* Branch List Modal Styles */
+        .branch-management-content {
+            padding: 10px 0;
+        }
+
+        .branch-list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        .branch-list-header h3 {
+            margin: 0;
+            color: #2c3e50;
+            font-size: 18px;
+        }
+
+        .branch-list-item.main {
+            border-left: 4px solid #2ecc71;
+            font-weight: bold;
+        }
+
+        .branch-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            margin-bottom: 8px;
+            border: 1px solid #ecf0f1;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: white;
+        }
+
+        .branch-list-item:hover {
+            background: #f8f9fa;
+            border-color: #3498db;
+            transform: translateX(5px);
+        }
+
+        .branch-list-item.current {
+            background: #e8f4f8;
+            border-color: #3498db;
+        }
+
+        .branch-item-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .branch-item-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .branch-action-btn {
+            padding: 4px 12px;
+            font-size: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .branch-action-btn:hover {
+            background: #f0f0f0;
+        }
+
+        .branch-action-btn.switch {
+            background: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+
+        .branch-action-btn.switch:hover {
+            background: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <h1>Git Graph Visualization</h1>
+                <div class="git-path-selector">
+                    <span style="color: white; font-size: 13px;">Git Repository:</span>
+                    <input type="text" id="git-path-input" class="git-path-input" placeholder="Enter git repository path..." value="{{ current_git_path|default:'' }}">
+                    <button class="git-path-btn" onclick="setGitPath()">Set Path</button>
+                    <button class="git-path-btn" onclick="browseGitPath()">Browse</button>
+                    <span id="current-git-path-display" class="current-git-path" title="{{ current_git_path|default:'Default repository' }}">
+                        {{ current_git_path|default:'Default repository' }}
+                    </span>
+                </div>
+            </div>
+            <div class="controls">
+                <label for="max-commits" style="color: white;">Commits:</label>
+                <select id="max-commits">
+                    <option value="50">50</option>
+                    <option value="100" selected>100</option>
+                    <option value="200">200</option>
+                    <option value="500">500</option>
+                </select>
+                <button onclick="loadGraph()">Refresh</button>
+                <button onclick="zoomIn()">Zoom In</button>
+                <button onclick="zoomOut()">Zoom Out</button>
+                <button onclick="resetZoom()">Reset</button>
+                <button onclick="showBranchListModal()">Branches</button>
+                <button onclick="window.location.href='/git/commit/'" style="background: #2ecc71;">Commit Changes</button>
+            </div>
+        </div>
+
+        <div id="graph-container">
+            <div class="loading" id="loading">Loading git history...</div>
+            <div class="branch-legend" id="branch-legend" style="display: none;">
+                <h3>Branches</h3>
+                <div id="branch-list"></div>
+                <div class="branch-create-item">
+                    <input type="text" class="branch-create-input" id="new-branch-input" placeholder="New branch name..." />
+                    <button class="branch-create-btn" onclick="createBranch()">Create</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="stats">
+            <div class="stat-item">
+                <span class="stat-label">Total Commits:</span>
+                <span class="stat-value" id="total-commits">-</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Branches:</span>
+                <span class="stat-value" id="total-branches">-</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Current:</span>
+                <span class="stat-value" id="current-branch">-</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Context Menu -->
+    <div class="context-menu" id="context-menu">
+        <div class="context-menu-item" onclick="cherryPickToCurrent()">Cherry-pick to Current Branch</div>
+        <div class="context-menu-item" onclick="showCherryPickDialog()">Cherry-pick to Branch...</div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item" onclick="copyCommitSHA()">Copy SHA</div>
+    </div>
+
+    <!-- Branch Selection Modal -->
+    <div class="modal" id="branch-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Select Branch</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <ul class="branch-list" id="modal-branch-list"></ul>
+        </div>
+    </div>
+
+    <!-- Branch List Modal -->
+    <div class="modal" id="branch-list-modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2>Branch Management</h2>
+                <button class="close-btn" onclick="closeBranchListModal()">&times;</button>
+            </div>
+            <div class="branch-management-content">
+                <div class="branch-list-header">
+                    <h3>All Branches</h3>
+                    <button class="action-btn primary" onclick="showMergeDialog()">Merge Branches...</button>
+                </div>
+                <ul class="branch-list" id="branch-list-container"></ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="action-buttons" id="action-buttons">
+        <button class="action-btn primary" onclick="resetSelected()">Reset to Selected</button>
+        <button class="action-btn" onclick="clearSelection()">Clear Selection</button>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        let currentData = null;
+        let currentBranchesData = null; // Store branches data for type lookup
+        let svg = null;
+        let g = null;
+        let zoom = null;
+        let selectedCommits = new Set();
+        let contextMenuTarget = null;
+        let isSelecting = false;
+        let selectionStart = null;
+        let selectionBox = null;
+
+        function loadGraph() {
+            const maxCommits = document.getElementById('max-commits').value;
+            const loading = document.getElementById('loading');
+            const container = document.getElementById('graph-container');
+
+            // Show loading
+            loading.style.display = 'flex';
+
+            // Clear previous graph and selections
+            d3.select('#graph-container svg').remove();
+            clearSelection();
+
+            fetch(`/git/commits/api/?max_commits=${maxCommits}`)
+                .then(response => response.json())
+                .then(data => {
+                    loading.style.display = 'none';
+                    currentData = data;
+
+                    if (data.error) {
+                        container.innerHTML = `<div class="error">Error: ${data.error}</div>`;
+                        return;
+                    }
+
+                    updateStats(data);
+                    renderGraph(data);
+                })
+                .catch(error => {
+                    loading.style.display = 'none';
+                    container.innerHTML = `<div class="error">Failed to load git data: ${error.message}</div>`;
+                    console.error('Error loading git data:', error);
+                });
+        }
+
+        function updateStats(data) {
+            document.getElementById('total-commits').textContent = data.total_commits || 0;
+            document.getElementById('total-branches').textContent = data.branches ? data.branches.length : 0;
+            document.getElementById('current-branch').textContent = data.active_branch_name;
+
+            // Update branch legend
+            updateBranchLegend(data.branches || []);
+        }
+
+        function updateBranchLegend(branches) {
+            const legendContainer = document.getElementById('branch-legend');
+            const branchList = document.getElementById('branch-list');
+
+            if (branches.length === 0) {
+                legendContainer.style.display = 'none';
+                return;
+            }
+
+            legendContainer.style.display = 'block';
+            branchList.innerHTML = '';
+
+            // Create a map to store unique branch names with their colors
+            const branchMap = new Map();
+
+            // First, collect all unique branches with their colors from the actual vertices
+            if (currentData && currentData.vertices) {
+                currentData.vertices.forEach(vertex => {
+                    if (vertex.branch && vertex.color) {
+                        branchMap.set(vertex.branch, vertex.color);
+                    }
+                });
+            }
+
+            // Then, add any branches from the branches array that might not be in vertices
+            branches.forEach(branch => {
+                const branchName = branch.name.replace('branch_', '');
+                if (!branchMap.has(branchName)) {
+                    branchMap.set(branchName, branch.color);
+                }
+            });
+
+            // Sort branches by their x position for consistent ordering
+            const sortedBranches = Array.from(branchMap.entries()).sort((a, b) => {
+                // Find the x position for each branch from the branches data
+                const branchA = branches.find(b => b.name.replace('branch_', '') === a[0]);
+                const branchB = branches.find(b => b.name.replace('branch_', '') === b[0]);
+                return (branchA ? branchA.x : 0) - (branchB ? branchB.x : 0);
+            });
+
+            sortedBranches.forEach(([branchName, color]) => {
+                const item = document.createElement('div');
+                item.className = 'branch-legend-item';
+                if (branchName === currentData.active_branch_name) {
+                    item.classList.add('current');
+                }
+
+                // Find branch info from branches array to get type
+                const branchInfo = currentData.branches ?
+                    currentData.branches.find(b => b.name === branchName) :
+                    { type: 'local' };
+                const isRemote = branchInfo.type === 'remote';
+
+                const colorBox = document.createElement('div');
+                colorBox.className = 'branch-color-box';
+                colorBox.style.backgroundColor = color;
+
+                const label = document.createElement('span');
+                label.textContent = branchName;
+
+                item.appendChild(colorBox);
+                item.appendChild(label);
+
+                // Add remote indicator if applicable
+                if (isRemote) {
+                    const remoteIndicator = document.createElement('span');
+                    remoteIndicator.textContent = ' 📡';
+                    remoteIndicator.style.fontSize = '12px';
+                    remoteIndicator.style.color = '#3498db';
+                    remoteIndicator.title = 'Remote branch';
+                    item.appendChild(remoteIndicator);
+                    item.style.opacity = '0.8';
+                }
+
+                // Add double-click handler for branch switching
+                item.ondblclick = () => {
+                    if (isRemote) {
+                        showRemoteBranchNotice(branchName);
+                    } else {
+                        switchBranch(branchName, branchInfo.type);
+                    }
+                };
+
+                // Add hover hint
+                item.title = isRemote ? 'Remote branch - Double-click for more info' : 'Local branch - Double-click to switch';
+
+                branchList.appendChild(item);
+            });
+        }
+
+        function renderGraph(data) {
+            if (!data.vertices || data.vertices.length === 0) {
+                document.getElementById('graph-container').innerHTML =
+                    '<div class="error">No commits found in this repository.</div>';
+                return;
+            }
+
+            const container = document.getElementById('graph-container');
+            const graphWidth = Math.max(400, data.branches.length * 80 + 100);
+            const textAreaWidth = 600;
+            const width = graphWidth + textAreaWidth;
+            const height = data.vertices.length * 60 + 100;
+
+            // Create SVG
+            svg = d3.select('#graph-container')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height);
+
+            // Create zoom behavior
+            zoom = d3.zoom()
+                .scaleExtent([0.1, 3])
+                .on('zoom', (event) => {
+                    g.attr('transform', event.transform);
+                });
+
+            svg.call(zoom);
+
+            // Create main group
+            g = svg.append('g')
+                .attr('transform', 'translate(50, 30)');
+
+            // Add selection box group
+            const selectionGroup = g.append('g').attr('id', 'selection-group');
+            selectionBox = selectionGroup.append('rect')
+                .attr('class', 'selection-box')
+                .style('display', 'none');
+
+            // Create branch lines
+            const branchLines = g.selectAll('.branch-line')
+                .data(data.branches)
+                .enter()
+                .append('line')
+                .attr('class', 'branch-line')
+                .attr('x1', d => d.x)
+                .attr('y1', 0)
+                .attr('x2', d => d.x)
+                .attr('y2', height)
+                .attr('stroke', d => d.color)
+                .attr('stroke-opacity', 0.3);
+
+            // Create edges (connections between commits)
+            const edges = [];
+            data.vertices.forEach(vertex => {
+                vertex.parents.forEach(parentId => {
+                    const parent = data.vertices.find(v => v.id === parentId);
+                    if (parent) {
+                        edges.push({
+                            source: parent,
+                            target: vertex
+                        });
+                    }
+                });
+            });
+
+            // Draw edges
+            g.selectAll('.commit-edge')
+                .data(edges)
+                .enter()
+                .append('path')
+                .attr('class', d => `commit-edge ${d.target.is_merge ? 'merge' : ''}`)
+                .attr('stroke', d => {
+                    // Use the source commit's branch color for the edge (start branch)
+                    return d.source.color || '#95a5a6';
+                })
+                .attr('d', d => {
+                    // Create improved paths for better visualization
+                    const sourceY = d.source.y;
+                    const targetY = d.target.y;
+                    const midY = (sourceY + targetY) / 2;
+                    const offsetX = 20; // Offset for curved paths to avoid intersections
+
+                    if (Math.abs(d.source.x - d.target.x) < 10) {
+                        // Straight line for same branch
+                        return `M ${d.source.x} ${sourceY} L ${d.target.x} ${targetY}`;
+                    } else if (d.target.is_merge && d.target.parents.length > 1) {
+                        // For merge commits, create a more pronounced curve to avoid intersections
+                        const controlOffset = offsetX * 2;
+                        return `M ${d.source.x} ${sourceY}
+                                C ${d.source.x + controlOffset} ${midY},
+                                  ${d.target.x + controlOffset} ${midY},
+                                  ${d.target.x} ${targetY}`;
+                    } else {
+                        // Standard curved line for branch changes
+                        return `M ${d.source.x} ${sourceY}
+                                C ${d.source.x + offsetX} ${midY},
+                                  ${d.target.x + offsetX} ${midY},
+                                  ${d.target.x} ${targetY}`;
+                    }
+                });
+
+            // Create commit nodes
+            const nodes = g.selectAll('.commit-node')
+                .data(data.vertices)
+                .enter()
+                .append('g')
+                .attr('class', d => `commit-node ${d.is_merge ? 'merge' : 'normal'}`)
+                .attr('transform', d => `translate(${d.x}, ${d.y})`)
+                .attr('data-sha', d => d.sha)
+                .on('mouseenter', showTooltip)
+                .on('mouseleave', hideTooltip)
+                .on('click', handleNodeClick)
+                .on('contextmenu', handleNodeRightClick);
+
+            // Draw commit circles
+            nodes.append('circle')
+                .attr('r', d => d.is_merge ? 8 : 6)
+                .attr('fill', d => d.color || '#95a5a6')
+                .attr('stroke', '#fff')
+                .attr('stroke-width', 2);
+
+            // Add merge indicators
+            nodes.filter(d => d.is_merge)
+                .append('rect')
+                .attr('x', -10)
+                .attr('y', -10)
+                .attr('width', 20)
+                .attr('height', 20)
+                .attr('fill', 'none')
+                .attr('stroke', '#2c3e50')
+                .attr('stroke-width', 2)
+                .attr('rx', 2);
+
+            // Add leader lines and text on the right side
+            nodes.each(function(d) {
+                const node = d3.select(this);
+                const textStartX = graphWidth + 20;
+                const textStartX2 = graphWidth + 25;
+
+                // Leader line from node to text area
+                node.append('line')
+                    .attr('class', 'leader-line')
+                    .attr('x1', 8)  // Start from edge of circle
+                    .attr('y1', 0)
+                    .attr('x2', textStartX - d.x)  // End at text area
+                    .attr('y2', 0);
+
+                // Commit SHA
+                const shaText = node.append('text')
+                    .attr('class', 'commit-label commit-sha')
+                    .attr('dx', textStartX - d.x)
+                    .attr('dy', -5);
+
+                // Apply styles for SHA
+                if (d.is_merge) {
+                    shaText
+                        .style('font-weight', '600')
+                        .style('font-family', 'Arial, Helvetica, sans-serif')
+                        .style('fill', '#666666')
+                        .style('font-size', '11px')
+                        .style('text-rendering', 'optimizeSpeed')
+                        .style('stroke', 'none');
+                } else {
+                    shaText
+                        .style('font-weight', 'bold')
+                        .style('font-family', "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif")
+                        .style('fill', '#7f8c8d')
+                        .style('font-size', '11px')
+                        .style('text-rendering', 'geometricPrecision')
+                        .style('stroke', 'none');
+                }
+
+                shaText.text(d.sha);
+
+                // Commit message
+                const messageText = node.append('text')
+                    .attr('class', d => `commit-label commit-message ${d.is_merge ? 'merge' : ''}`)
+                    .attr('dx', textStartX2 - d.x)
+                    .attr('dy', 10);
+
+                // Apply different styles for merge commits
+                if (d.is_merge) {
+                    // Use lighter font weight and different font for merge commits
+                    messageText
+                        .style('font-weight', 'lighter')  // Use 'lighter' instead of numeric value
+                        .style('font-family', 'Arial, Helvetica, sans-serif')  // Simpler font stack
+                        .style('fill', '#444444')  // Darker gray for better contrast
+                        .style('font-size', '12px')
+                        .style('text-rendering', 'optimizeSpeed')  // Use optimizeSpeed for SVG
+                        .style('shape-rendering', 'crispEdges')
+                        .style('stroke', 'none')  // Remove any stroke
+                        .style('stroke-width', '0');
+                } else {
+                    // Regular commits
+                    messageText
+                        .style('font-weight', 'normal')  // Use 'normal' keyword
+                        .style('font-family', "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif")
+                        .style('fill', '#2c3e50')
+                        .style('font-size', '13px')
+                        .style('text-rendering', 'geometricPrecision')
+                        .style('stroke', 'none')
+                        .style('stroke-width', '0');
+                }
+
+                messageText.text(d.message.length > 80 ? d.message.substring(0, 80) + '...' : d.message);
+
+                // Author info
+                const authorText = node.append('text')
+                    .attr('class', 'commit-label commit-author')
+                    .attr('dx', textStartX2 - d.x)
+                    .attr('dy', 25);
+
+                // Apply styles for author info
+                if (d.is_merge) {
+                    authorText
+                        .style('font-weight', 'normal')
+                        .style('font-family', 'Arial, Helvetica, sans-serif')
+                        .style('fill', '#777777')
+                        .style('font-size', '10px')
+                        .style('text-rendering', 'optimizeSpeed')
+                        .style('stroke', 'none');
+                } else {
+                    authorText
+                        .style('font-weight', 'normal')
+                        .style('font-family', "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif")
+                        .style('fill', '#95a5a6')
+                        .style('font-size', '11px')
+                        .style('text-rendering', 'geometricPrecision')
+                        .style('stroke', 'none');
+                }
+
+                authorText.text(`${d.author} • ${formatDate(d.date)}`);
+            });
+
+            // Add selection handlers
+            svg.on('mousedown', handleSelectionStart)
+               .on('mousemove', handleSelectionMove)
+               .on('mouseup', handleSelectionEnd);
+
+            // Hide context menu on click
+            document.addEventListener('click', () => {
+                document.getElementById('context-menu').style.display = 'none';
+            });
+
+            // Initial zoom to fit
+            resetZoom();
+        }
+
+        function handleNodeClick(event, d) {
+            if (event.shiftKey) {
+                // Shift+click to toggle selection
+                const node = d3.select(event.currentTarget);
+
+                if (selectedCommits.has(d.sha)) {
+                    selectedCommits.delete(d.sha);
+                    node.classed('selected', false);
+                } else {
+                    selectedCommits.add(d.sha);
+                    node.classed('selected', true);
+                }
+
+                updateActionButtons();
+            }
+        }
+
+        function handleNodeRightClick(event, d) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            contextMenuTarget = d;
+            const menu = document.getElementById('context-menu');
+            menu.style.left = event.pageX + 'px';
+            menu.style.top = event.pageY + 'px';
+            menu.style.display = 'block';
+        }
+
+        function handleSelectionStart(event) {
+            // Only start selection if not clicking on a node
+            if (event.target === svg.node() || event.target.parentElement === g.node()) {
+                isSelecting = true;
+                const transform = d3.zoomTransform(svg.node());
+                selectionStart = {
+                    x: (event.offsetX - transform.x) / transform.k,
+                    y: (event.offsetY - transform.y) / transform.k
+                };
+
+                selectionBox
+                    .attr('x', selectionStart.x)
+                    .attr('y', selectionStart.y)
+                    .attr('width', 0)
+                    .attr('height', 0)
+                    .style('display', 'block');
+            }
+        }
+
+        function handleSelectionMove(event) {
+            if (!isSelecting) return;
+
+            const transform = d3.zoomTransform(svg.node());
+            const currentX = (event.offsetX - transform.x) / transform.k;
+            const currentY = (event.offsetY - transform.y) / transform.k;
+
+            const x = Math.min(selectionStart.x, currentX);
+            const y = Math.min(selectionStart.y, currentY);
+            const width = Math.abs(currentX - selectionStart.x);
+            const height = Math.abs(currentY - selectionStart.y);
+
+            selectionBox
+                .attr('x', x)
+                .attr('y', y)
+                .attr('width', width)
+                .attr('height', height);
+        }
+
+        function handleSelectionEnd(event) {
+            if (!isSelecting) return;
+
+            isSelecting = false;
+
+            // Get selection bounds
+            const bounds = selectionBox.node().getBBox();
+
+            // Select nodes within bounds
+            d3.selectAll('.commit-node').each(function(d) {
+                const node = d3.select(this);
+                const transform = node.attr('transform');
+                const match = transform.match(/translate\(([^,]+),([^)]+)\)/);
+
+                if (match) {
+                    const nodeX = parseFloat(match[1]);
+                    const nodeY = parseFloat(match[2]);
+
+                    if (nodeX >= bounds.x && nodeX <= bounds.x + bounds.width &&
+                        nodeY >= bounds.y && nodeY <= bounds.y + bounds.height) {
+                        selectedCommits.add(d.sha);
+                        node.classed('selected', true);
+                    }
+                }
+            });
+
+            // Hide selection box
+            selectionBox.style('display', 'none');
+
+            updateActionButtons();
+        }
+
+        function updateActionButtons() {
+            const buttons = document.getElementById('action-buttons');
+            if (selectedCommits.size > 0) {
+                buttons.style.display = 'flex';
+            } else {
+                buttons.style.display = 'none';
+            }
+        }
+
+        function clearSelection() {
+            selectedCommits.clear();
+            d3.selectAll('.commit-node').classed('selected', false);
+            updateActionButtons();
+        }
+
+        function resetSelected() {
+            if (selectedCommits.size === 0) return;
+
+            // Get the oldest selected commit (first in the list)
+            const sortedCommits = Array.from(selectedCommits).sort((a, b) => {
+                const commitA = currentData.vertices.find(v => v.sha === a);
+                const commitB = currentData.vertices.find(v => v.sha === b);
+                return commitB.y - commitA.y; // Descending by Y (newer commits have higher Y)
+            });
+
+            if (sortedCommits.length > 0) {
+                const targetSha = sortedCommits[sortedCommits.length - 1];
+
+                fetch('/git/reset/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        commit_sha: targetSha,
+                        mode: 'mixed'
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast(data.message, 'success');
+                        loadGraph(); // Reload graph
+                    } else {
+                        showToast(data.message, 'error');
+                    }
+                    clearSelection();
+                })
+                .catch(error => {
+                    showToast('Failed to reset: ' + error.message, 'error');
+                });
+            }
+        }
+
+        function createBranch() {
+            const input = document.getElementById('new-branch-input');
+            const branchName = input.value.trim();
+
+            if (!branchName) {
+                showToast('Branch name cannot be empty', 'error');
+                return;
+            }
+
+            fetch('/git/create-branch/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    branch_name: branchName,
+                    switch: true  // Create and switch to the new branch
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    input.value = '';  // Clear the input field
+                    loadGraph(); // Reload graph
+                } else {
+                    showToast(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showToast('Failed to create branch: ' + error.message, 'error');
+            });
+        }
+
+        // Handle Enter key in the branch input field
+        document.addEventListener('DOMContentLoaded', function() {
+            const branchInput = document.getElementById('new-branch-input');
+            if (branchInput) {
+                branchInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        createBranch();
+                    }
+                });
+            }
+        });
+
+        function switchBranch(branchName, branchType) {
+            // For local branches, proceed with switching
+            // For remote branches, show notice
+            fetch('/git/switch-branch/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    branch_name: branchName
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    loadGraph(); // Reload graph
+                } else {
+                    showToast(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showToast('Failed to switch branch: ' + error.message, 'error');
+            });
+        }
+
+        function showRemoteBranchNotice(branchName) {
+            const modal = document.getElementById('branch-modal');
+            const modalTitle = document.getElementById('modal-title');
+            const branchList = document.getElementById('modal-branch-list');
+
+            modalTitle.textContent = 'Remote Branch Information';
+            branchList.innerHTML = `
+                <div style="padding: 20px; text-align: center;">
+                    <div style="font-size: 48px; color: #3498db; margin-bottom: 20px;">📡</div>
+                    <h3 style="color: #2c3e50; margin-bottom: 15px;">This is a Remote Branch</h3>
+                    <p style="color: #7f8c8d; line-height: 1.6; margin-bottom: 20px;">
+                        <strong>${branchName}</strong> is a remote branch that exists on the remote repository but not locally.
+                    </p>
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; text-align: left;">
+                        <h4 style="color: #2c3e50; margin-top: 0;">To work with this branch:</h4>
+                        <ol style="margin: 10px 0; padding-left: 20px; color: #555;">
+                            <li>Create a local branch that tracks this remote branch</li>
+                            <li>Use: <code style="background: #ecf0f1; padding: 2px 5px; border-radius: 3px;">git checkout -b ${branchName.split('/')[1]} origin/${branchName.split('/')[1]}</code></li>
+                            <li>Or fetch the latest changes from remote first</li>
+                        </ol>
+                    </div>
+                    <button onclick="closeModal()" style="padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                        Understood
+                    </button>
+                </div>
+            `;
+
+            modal.style.display = 'flex';
+        }
+
+        function cherryPickToCurrent() {
+            if (!contextMenuTarget) return;
+
+            fetch('/git/cherry-pick/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    commit_sha: contextMenuTarget.sha
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    loadGraph(); // Reload graph
+                } else {
+                    if (data.has_conflicts && data.redirect_to) {
+                        showToast('Cherry-pick conflicts detected! Redirecting to conflict resolution...', 'warning');
+                        setTimeout(() => {
+                            window.location.href = data.redirect_to;
+                        }, 1500);
+                    } else {
+                        showToast(data.message, 'error');
+                    }
+                    // Clear any selections after cherry-pick attempt
+                    clearSelection();
+                }
+            })
+            .catch(error => {
+                showToast('Failed to cherry-pick: ' + error.message, 'error');
+                // Clear any selections after error
+                clearSelection();
+            });
+        }
+
+        function showCherryPickDialog() {
+            if (!contextMenuTarget) return;
+
+            // Load branches
+            fetch('/git/branches/')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showBranchModal('Select Target Branch for Cherry-pick', data.branches, (branchName) => {
+                            performCherryPick(contextMenuTarget.sha, branchName);
+                        });
+                    } else {
+                        showToast('Failed to load branches: ' + data.message, 'error');
+                    }
+                });
+        }
+
+        function performCherryPick(commitSha, targetBranch) {
+            fetch('/git/cherry-pick/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    commit_sha: commitSha,
+                    target_branch: targetBranch
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    loadGraph(); // Reload graph
+                } else {
+                    showToast(data.message, 'error');
+                    // Clear any selections after cherry-pick attempt
+                    clearSelection();
+                }
+                closeModal();
+            })
+            .catch(error => {
+                showToast('Failed to cherry-pick: ' + error.message, 'error');
+                // Clear any selections after error
+                clearSelection();
+                closeModal();
+            });
+        }
+
+        function showBranchModal(title, branches, onSelect) {
+            const modal = document.getElementById('branch-modal');
+            const modalTitle = document.getElementById('modal-title');
+            const branchList = document.getElementById('modal-branch-list');
+
+            modalTitle.textContent = title;
+            branchList.innerHTML = '';
+
+            branches.forEach(branch => {
+                const item = document.createElement('li');
+                item.className = 'branch-list-item';
+                if (branch.is_current) {
+                    item.classList.add('current');
+                }
+
+                const name = document.createElement('span');
+                name.textContent = branch.name;
+
+                const badge = document.createElement('span');
+                badge.className = 'branch-badge';
+                badge.textContent = branch.type;
+
+                item.appendChild(name);
+                item.appendChild(badge);
+
+                // Check if this is a remote branch
+                const isRemote = branch.type === 'remote';
+
+                if (isRemote) {
+                    // Add remote indicator
+                    const remoteIndicator = document.createElement('span');
+                    remoteIndicator.textContent = ' 📡';
+                    remoteIndicator.style.fontSize = '12px';
+                    remoteIndicator.style.color = '#3498db';
+                    remoteIndicator.title = 'Remote branch';
+                    item.appendChild(remoteIndicator);
+
+                    // Make the item visually different
+                    item.style.opacity = '0.8';
+                    item.style.fontStyle = 'italic';
+
+                    // Show notice instead of selecting
+                    item.onclick = () => showRemoteBranchNotice(branch.name);
+                } else {
+                    // Only allow selection of local branches
+                    item.onclick = () => onSelect(branch.name);
+                }
+
+                // Add hover hint
+                if (isRemote) {
+                    item.title = 'Remote branch - Click for more info';
+                }
+
+                branchList.appendChild(item);
+            });
+
+            modal.style.display = 'flex';
+        }
+
+        function showMergeDialog() {
+            // Load branches for merge
+            fetch('/git/branches/')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Close branch list modal if it's open
+                        document.getElementById('branch-list-modal').style.display = 'none';
+                        showMergeBranchSelection(data.branches);
+                    } else {
+                        showToast('Failed to load branches: ' + data.message, 'error');
+                    }
+                });
+        }
+
+        function showMergeBranchSelection(branches) {
+            const modal = document.getElementById('branch-modal');
+            const modalTitle = document.getElementById('modal-title');
+            const branchList = document.getElementById('modal-branch-list');
+
+            modalTitle.textContent = 'Merge Branches';
+            branchList.innerHTML = '';
+
+            // Create two selection areas
+            const sourceContainer = document.createElement('div');
+            sourceContainer.innerHTML = '<h3>Source Branch (to merge from):</h3>';
+            const sourceList = document.createElement('ul');
+            sourceList.className = 'branch-list';
+            sourceContainer.appendChild(sourceList);
+
+            const targetContainer = document.createElement('div');
+            targetContainer.innerHTML = '<h3>Target Branch (to merge into):</h3>';
+            const targetList = document.createElement('ul');
+            targetList.className = 'branch-list';
+            targetContainer.appendChild(targetList);
+
+            let selectedSource = null;
+            let selectedTarget = null;
+
+            branches.forEach(branch => {
+                const isRemote = branch.type === 'remote';
+
+                // Source branch item
+                const sourceItem = document.createElement('li');
+                sourceItem.className = 'branch-list-item';
+                if (branch.is_current) {
+                    sourceItem.classList.add('current');
+                }
+
+                const sourceName = document.createElement('span');
+                sourceName.textContent = branch.name;
+
+                const sourceBadge = document.createElement('span');
+                sourceBadge.className = 'branch-badge';
+                sourceBadge.textContent = branch.type;
+
+                sourceItem.appendChild(sourceName);
+                sourceItem.appendChild(sourceBadge);
+
+                // Add remote indicator
+                if (isRemote) {
+                    const remoteIndicator = document.createElement('span');
+                    remoteIndicator.textContent = ' 📡';
+                    remoteIndicator.style.fontSize = '12px';
+                    remoteIndicator.style.color = '#3498db';
+                    sourceItem.appendChild(remoteIndicator);
+                    sourceItem.style.opacity = '0.8';
+                    sourceItem.title = 'Remote branch - Cannot be used for merge directly';
+                }
+
+                sourceItem.onclick = () => {
+                    if (isRemote) {
+                        showRemoteBranchNotice(branch.name);
+                        return;
+                    }
+                    document.querySelectorAll('#source-list .branch-list-item').forEach(item => {
+                        item.classList.remove('selected');
+                    });
+                    sourceItem.classList.add('selected');
+                    selectedSource = branch.name;
+                    checkAndPerformMerge();
+                };
+
+                sourceList.id = 'source-list';
+                sourceList.appendChild(sourceItem);
+
+                // Target branch item (skip current branch and remote branches)
+                if (!branch.is_current && !isRemote) {
+                    const targetItem = document.createElement('li');
+                    targetItem.className = 'branch-list-item';
+
+                    const targetName = document.createElement('span');
+                    targetName.textContent = branch.name;
+
+                    const targetBadge = document.createElement('span');
+                    targetBadge.className = 'branch-badge';
+                    targetBadge.textContent = branch.type;
+
+                    targetItem.appendChild(targetName);
+                    targetItem.appendChild(targetBadge);
+
+                    targetItem.onclick = () => {
+                        document.querySelectorAll('#target-list .branch-list-item').forEach(item => {
+                            item.classList.remove('selected');
+                        });
+                        targetItem.classList.add('selected');
+                        selectedTarget = branch.name;
+                        checkAndPerformMerge();
+                    };
+
+                    targetList.id = 'target-list';
+                    targetList.appendChild(targetItem);
+                }
+            });
+
+            branchList.appendChild(sourceContainer);
+            branchList.appendChild(targetContainer);
+
+            // Add selected style
+            const style = document.createElement('style');
+            style.textContent = `
+                .branch-list-item.selected {
+                    background: #3498db !important;
+                    color: white !important;
+                }
+                .branch-list-item.selected .branch-badge {
+                    background: white !important;
+                    color: #3498db !important;
+                }
+            `;
+            document.head.appendChild(style);
+
+            modal.style.display = 'flex';
+
+            function checkAndPerformMerge() {
+                if (selectedSource && selectedTarget) {
+                    performMerge(selectedSource, selectedTarget);
+                }
+            }
+        }
+
+        function performMerge(sourceBranch, targetBranch) {
+            fetch('/git/merge/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    source_branch: sourceBranch,
+                    target_branch: targetBranch
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    loadGraph(); // Reload graph
+                } else {
+                    if (data.has_conflicts) {
+                        showToast('Merge conflicts detected! Please go to the Commit page to resolve conflicts manually.', 'warning');
+                    } else {
+                        showToast(data.message, 'error');
+                    }
+                }
+                closeModal();
+            })
+            .catch(error => {
+                showToast('Failed to merge: ' + error.message, 'error');
+            });
+        }
+
+        function closeModal() {
+            document.getElementById('branch-modal').style.display = 'none';
+        }
+
+        function showBranchListModal() {
+            const modal = document.getElementById('branch-list-modal');
+            const container = document.getElementById('branch-list-container');
+
+            // Load branches
+            fetch('/git/branches/')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayBranchList(data.branches);
+                        modal.style.display = 'flex';
+                    } else {
+                        showToast('Failed to load branches: ' + data.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    showToast('Failed to load branches: ' + error.message, 'error');
+                });
+        }
+
+        function closeBranchListModal() {
+            document.getElementById('branch-list-modal').style.display = 'none';
+        }
+
+        function displayBranchList(branches) {
+            const container = document.getElementById('branch-list-container');
+            container.innerHTML = '';
+
+            // Store branches data for type lookup
+            currentBranchesData = branches;
+
+            // Sort branches: main first, then current branch, then others alphabetically
+            const sortedBranches = [...branches].sort((a, b) => {
+                // Main branch always first
+                if (a.name === 'main') return -1;
+                if (b.name === 'main') return 1;
+
+                // Current branch second
+                if (a.is_current) return -1;
+                if (b.is_current) return 1;
+
+                // Then alphabetically
+                return a.name.localeCompare(b.name);
+            });
+
+            sortedBranches.forEach(branch => {
+                const item = document.createElement('li');
+                item.className = 'branch-list-item';
+
+                if (branch.is_current) {
+                    item.classList.add('current');
+                }
+
+                if (branch.name === 'main') {
+                    item.classList.add('main');
+                }
+
+                const isRemote = branch.type === 'remote';
+
+                const infoDiv = document.createElement('div');
+                infoDiv.className = 'branch-item-info';
+
+                // Branch name and badge
+                const nameSpan = document.createElement('span');
+                nameSpan.style.fontWeight = branch.name === 'main' || branch.is_current ? 'bold' : 'normal';
+                nameSpan.textContent = branch.name;
+
+                const badge = document.createElement('span');
+                badge.className = 'branch-badge';
+                badge.style.marginLeft = '8px';
+                badge.textContent = branch.type;
+
+                infoDiv.appendChild(nameSpan);
+                infoDiv.appendChild(badge);
+
+                // Add remote indicator if applicable
+                if (isRemote) {
+                    const remoteIndicator = document.createElement('span');
+                    remoteIndicator.textContent = ' 📡';
+                    remoteIndicator.style.fontSize = '14px';
+                    remoteIndicator.title = 'Remote branch';
+                    infoDiv.appendChild(remoteIndicator);
+                }
+
+                // Actions
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'branch-item-actions';
+
+                if (!isRemote) {
+                    // Switch button for local branches
+                    if (!branch.is_current) {
+                        const switchBtn = document.createElement('button');
+                        switchBtn.className = 'branch-action-btn switch';
+                        switchBtn.textContent = 'Switch';
+                        switchBtn.onclick = (e) => {
+                            e.stopPropagation();
+                            switchBranchFromList(branch.name);
+                        };
+                        actionsDiv.appendChild(switchBtn);
+                    } else {
+                        const currentBtn = document.createElement('span');
+                        currentBtn.className = 'branch-action-btn';
+                        currentBtn.style.background = '#95a5a6';
+                        currentBtn.style.color = 'white';
+                        currentBtn.textContent = 'Current';
+                        actionsDiv.appendChild(currentBtn);
+                    }
+                } else {
+                    // Info button for remote branches
+                    const infoBtn = document.createElement('button');
+                    infoBtn.className = 'branch-action-btn';
+                    infoBtn.textContent = 'Info';
+                    infoBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        showRemoteBranchNotice(branch.name);
+                    };
+                    actionsDiv.appendChild(infoBtn);
+                }
+
+                item.appendChild(infoDiv);
+                item.appendChild(actionsDiv);
+
+                // Click on item to switch (for local branches) or show info (for remote)
+                item.onclick = () => {
+                    if (isRemote) {
+                        showRemoteBranchNotice(branch.name);
+                    } else if (!branch.is_current) {
+                        switchBranchFromList(branch.name);
+                    }
+                };
+
+                container.appendChild(item);
+            });
+        }
+
+        function switchBranchFromList(branchName) {
+            // Check if this is a remote branch from branch data
+            const branchInfo = currentBranchesData ?
+                currentBranchesData.find(b => b.name === branchName) :
+                { type: 'local' };
+
+            if (branchInfo.type === 'remote') {
+                showRemoteBranchNotice(branchName);
+                return;
+            }
+
+            fetch('/git/switch-branch/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    branch_name: branchName
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(`Successfully switched to '${branchName}'`, 'success');
+                    closeBranchListModal();
+                    loadGraph(); // Reload graph
+                } else {
+                    showToast(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showToast('Failed to switch branch: ' + error.message, 'error');
+            });
+        }
+
+        function copyCommitSHA() {
+            if (!contextMenuTarget) return;
+
+            navigator.clipboard.writeText(contextMenuTarget.sha)
+                .then(() => {
+                    showToast('Commit SHA copied to clipboard', 'success');
+                })
+                .catch(() => {
+                    showToast('Failed to copy SHA', 'error');
+                });
+        }
+
+        function showTooltip(event, d) {
+            const tooltip = document.getElementById('tooltip');
+            const date = new Date(d.date * 1000);
+
+            tooltip.innerHTML = `
+                <strong>${d.sha}</strong><br>
+                <strong>Message:</strong> ${d.message}<br>
+                <strong>Author:</strong> ${d.author}<br>
+                <strong>Date:</strong> ${date.toLocaleString()}<br>
+                <strong>Branch:</strong> ${d.branch || 'unknown'}<br>
+                <strong>Type:</strong> ${d.is_merge ? 'Merge Commit' : 'Normal Commit'}
+            `;
+
+            tooltip.style.left = event.pageX + 10 + 'px';
+            tooltip.style.top = event.pageY - 10 + 'px';
+            tooltip.style.opacity = 1;
+        }
+
+        function hideTooltip() {
+            document.getElementById('tooltip').style.opacity = 0;
+        }
+
+        function formatDate(timestamp) {
+            const date = new Date(timestamp * 1000);
+            return date.toLocaleDateString();
+        }
+
+        function zoomIn() {
+            if (svg && zoom) {
+                svg.transition().call(zoom.scaleBy, 1.5);
+            }
+        }
+
+        function zoomOut() {
+            if (svg && zoom) {
+                svg.transition().call(zoom.scaleBy, 1 / 1.5);
+            }
+        }
+
+        function resetZoom() {
+            if (svg && zoom && currentData) {
+                const container = document.getElementById('graph-container');
+                const containerWidth = container.clientWidth;
+                const containerHeight = container.clientHeight;
+
+                const graphWidth = Math.max(400, currentData.branches.length * 80 + 100);
+                const textAreaWidth = 600;
+                const graphHeight = currentData.vertices.length * 60 + 100;
+
+                const scale = Math.min(
+                    containerWidth / (graphWidth + textAreaWidth),
+                    containerHeight / graphHeight,
+                    1
+                );
+
+                const translateX = (containerWidth - graphWidth * scale) / 2;
+                const translateY = 30;
+
+                svg.transition()
+                    .duration(750)
+                    .call(zoom.transform, d3.zoomIdentity
+                        .translate(translateX, translateY)
+                        .scale(scale));
+            }
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type} show`;
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // Git path management functions
+        function setGitPath() {
+            const input = document.getElementById('git-path-input');
+            const gitPath = input.value.trim();
+
+            if (!gitPath) {
+                showToast('Please enter a git repository path', 'error');
+                return;
+            }
+
+            fetch('/git/set-path/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    git_path: gitPath
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    document.getElementById('current-git-path-display').textContent = gitPath;
+                    document.getElementById('current-git-path-display').title = gitPath;
+                    // Reload the graph with the new path
+                    loadGraph();
+                } else {
+                    showToast(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showToast('Failed to set git path: ' + error.message, 'error');
+            });
+        }
+
+        function browseGitPath() {
+            // Create a file input element for browsing
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.webkitdirectory = false; // We want to select a directory, not files
+            input.multiple = false;
+
+            // Note: Due to browser security restrictions, we can't directly browse directories
+            // Instead, we'll show a prompt with some common git locations
+            const commonPaths = [
+                'C:\\Users\\' + (navigator.userAgent.includes('Windows') ? 'Public' : '') + '\\Documents\\GitHub',
+                'D:\\Projects',
+                'E:\\Github',
+                '/home/user/projects',
+                '/Users/username/projects'
+            ];
+
+            const selectedPath = prompt(
+                'Enter the full path to your git repository:\n\nExamples:\n' +
+                commonPaths.join('\n') + '\n\\path\\to\\your\\repo',
+                document.getElementById('git-path-input').value
+            );
+
+            if (selectedPath) {
+                document.getElementById('git-path-input').value = selectedPath;
+                setGitPath();
+            }
+        }
+
+        function loadCurrentGitPath() {
+            fetch('/git/get-path/')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('git-path-input').value = data.git_path;
+                        document.getElementById('current-git-path-display').textContent = data.git_path;
+                        document.getElementById('current-git-path-display').title = data.git_path;
+                    }
+                })
+                .catch(error => {
+                    console.error('Failed to load current git path:', error);
+                });
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            // Handle Enter key in git path input
+            const gitPathInput = document.getElementById('git-path-input');
+            if (gitPathInput) {
+                gitPathInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        setGitPath();
+                    }
+                });
+            }
+
+            // Load current git path on page load
+            loadCurrentGitPath();
+
+            // Load graph on page load
+            loadGraph();
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (currentData) {
+                resetZoom();
+            }
+        });
+    </script>
+</body>
+</html>
