@@ -24,6 +24,7 @@ urlpatterns = [
     path("login/", admin.site.urls),
     path("api/collaboration/", include('RealtimeCollaboration.urls')),
     # path("admin/", admin.site.urls),
+    path("git/", include("GitIntegration.urls")),
     path("", include("ProjectManagement.urls")),
 
 if settings.DEBUG:
