@@ -18,14 +18,22 @@ Including another URLconf
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import include, path
+from django.views.generic import RedirectView
+
+# 设置 admin 登录后的重定向
+admin.site.site_header = "项目管理系统"
+admin.site.index_title = "管理后台"
 
 urlpatterns = [
+    path("", RedirectView.as_view(url="/login/", permanent=False)),
     path("login/", admin.site.urls),
-    path("api/collaboration/", include('RealtimeCollaboration.urls')),
-    # path("admin/", admin.site.urls),
+    path("admin/", RedirectView.as_view(url="/projects/", permanent=False)),
+    path("api/collaboration/", include("RealtimeCollaboration.urls")),
     path("git/", include("GitIntegration.urls")),
-    path("", include("ProjectManagement.urls")),
+    path("projects/", include("ProjectManagement.urls")),
+    path("teams/", include("TeamManagement.urls")),
+]
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

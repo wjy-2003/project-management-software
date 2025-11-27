@@ -8,6 +8,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import NoReverseMatch, reverse
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_http_methods
+
 from .models import Team, TeamMember
 
 User = get_user_model()
@@ -15,22 +16,40 @@ MANAGER_ROLE_HINTS = {"owner", "admin", "manager", "leader", "maintainer", "capt
 
 TEAM_MEMBER_FIELDS = {field.name: field for field in TeamMember._meta.fields}
 TEAM_FIELD_NAME = next(
-    (name for name, field in TEAM_MEMBER_FIELDS.items() if field.is_relation and field.related_model == Team),
+    (
+        name
+        for name, field in TEAM_MEMBER_FIELDS.items()
+        if field.is_relation and field.related_model == Team
+    ),
     None,
 )
 USER_FIELD_NAME = next(
-    (name for name, field in TEAM_MEMBER_FIELDS.items() if field.is_relation and field.related_model == User),
+    (
+        name
+        for name, field in TEAM_MEMBER_FIELDS.items()
+        if field.is_relation and field.related_model == User
+    ),
     None,
 )
 
 if TEAM_FIELD_NAME is None or USER_FIELD_NAME is None:
-    raise ImproperlyConfigured("TeamMember model must include foreign key fields to both Team and the user model.")
+    raise ImproperlyConfigured(
+        "TeamMember model must include foreign key fields to both Team and the user model."
+    )
 
 TEAM_FIELD_ID_LOOKUP = f"{TEAM_FIELD_NAME}_id"
 USER_FIELD_LOOKUP = USER_FIELD_NAME
 
 ROLE_FIELD_NAME = next(
-    (name for name, field in TEAM_MEMBER_FIELDS.items() if field.name == "role" or (field.related_model and field.related_model.__name__.lower() in {"role", "teamrole"})),
+    (
+        name
+        for name, field in TEAM_MEMBER_FIELDS.items()
+        if field.name == "role"
+        or (
+            field.related_model
+            and field.related_model.__name__.lower() in {"role", "teamrole"}
+        )
+    ),
     None,
 )
 
@@ -105,7 +124,9 @@ def _visible_teams(user):
     perm_codename = f"{Team._meta.app_label}.view_{Team._meta.model_name}"
     if user.is_superuser or user.has_perm(perm_codename):
         return qs
-    team_ids = TeamMember.objects.filter(**{USER_FIELD_NAME: user}).values_list(TEAM_FIELD_ID_LOOKUP, flat=True)
+    team_ids = TeamMember.objects.filter(**{USER_FIELD_NAME: user}).values_list(
+        TEAM_FIELD_ID_LOOKUP, flat=True
+    )
     return qs.filter(pk__in=team_ids)
 
 
@@ -131,10 +152,12 @@ class TeamMemberForm(forms.ModelForm):
     def __init__(self, *args, team: Team | None = None, **kwargs):
         super().__init__(*args, **kwargs)
         if team and USER_FIELD_NAME in self.fields:
-            current_members = TeamMember.objects.filter(**{TEAM_FIELD_NAME: team}).values_list(
-                f"{USER_FIELD_NAME}_id", flat=True
+            current_members = TeamMember.objects.filter(
+                **{TEAM_FIELD_NAME: team}
+            ).values_list(f"{USER_FIELD_NAME}_id", flat=True)
+            self.fields[USER_FIELD_NAME].queryset = User.objects.exclude(
+                pk__in=current_members
             )
-            self.fields[USER_FIELD_NAME].queryset = User.objects.exclude(pk__in=current_members)
 
 
 @login_required
@@ -147,8 +170,12 @@ def team_list(request):
 def team_detail(request, pk):
     team = get_object_or_404(Team, pk=pk)
     _ensure_team_permission(request.user, team, manage=False)
-    members = TeamMember.objects.filter(**{TEAM_FIELD_NAME: team}).select_related(*SELECT_RELATED_FIELDS)
-    return render(request, "TeamManagement/team_detail.html", {"team": team, "members": members})
+    members = TeamMember.objects.filter(**{TEAM_FIELD_NAME: team}).select_related(
+        *SELECT_RELATED_FIELDS
+    )
+    return render(
+        request, "TeamManagement/team_detail.html", {"team": team, "members": members}
+    )
 
 
 @login_required
@@ -186,7 +213,9 @@ def team_update(request, pk):
         form.save()
         messages.success(request, _("Team information updated successfully"))
         return redirect(_safe_reverse("team_detail", pk=team.pk))
-    return render(request, "TeamManagement/team_form.html", {"form": form, "team": team})
+    return render(
+        request, "TeamManagement/team_form.html", {"form": form, "team": team}
+    )
 
 
 @login_required
@@ -211,7 +240,9 @@ def team_member_add(request, pk):
         membership.save()
         messages.success(request, _("Member added to team successfully"))
         return redirect(_safe_reverse("team_detail", pk=team.pk))
-    return render(request, "TeamManagement/team_member_form.html", {"form": form, "team": team})
+    return render(
+        request, "TeamManagement/team_member_form.html", {"form": form, "team": team}
+    )
 
 
 @login_required
@@ -224,8 +255,39 @@ def team_member_remove(request, pk, member_id):
         pk=member_id,
         **{TEAM_FIELD_NAME: team},
     )
-    if getattr(membership, USER_FIELD_NAME) == request.user and not request.user.is_superuser:
+    if (
+        getattr(membership, USER_FIELD_NAME) == request.user
+        and not request.user.is_superuser
+    ):
         raise PermissionDenied(_("Cannot remove yourself."))
     membership.delete()
     messages.success(request, _("Member removed successfully"))
     return redirect(_safe_reverse("team_detail", pk=team.pk))
+
+
+@login_required
+def team_member_list(request, pk):
+    """显示团队成员列表"""
+    team = get_object_or_404(Team, pk=pk)
+    _ensure_team_permission(request.user, team, manage=False)
+    members = TeamMember.objects.filter(**{TEAM_FIELD_NAME: team}).select_related(
+        *SELECT_RELATED_FIELDS
+    )
+
+    # 检查当前用户是否可以管理团队
+    can_manage = False
+    try:
+        _ensure_team_permission(request.user, team, manage=True)
+        can_manage = True
+    except PermissionDenied:
+        pass
+
+    return render(
+        request,
+        "TeamManagement/team_member_list.html",
+        {
+            "team": team,
+            "members": members,
+            "can_manage": can_manage,
+        },
+    )

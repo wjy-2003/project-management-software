@@ -4,10 +4,13 @@
 REST API views
 Provide HTTP interfaces for session management
 """
+import json
+
 from django.http import JsonResponse
+from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
-import json
+
 from .session_manager import session_manager
 
 
@@ -30,32 +33,33 @@ def create_session(request):
     """
     try:
         data = json.loads(request.body)
-        initiator = data.get('initiator')
-        
+        initiator = data.get("initiator")
+
         if not initiator:
-            return JsonResponse({
-                'success': False,
-                'message': 'Initiator ID is required'
-            }, status=400)
-        
+            return JsonResponse(
+                {"success": False, "message": "Initiator ID is required"}, status=400
+            )
+
         session_id = session_manager.create_session(initiator)
-        
-        return JsonResponse({
-            'success': True,
-            'session_id': session_id,
-            'message': 'Session created successfully'
-        }, status=201)
-    
+
+        return JsonResponse(
+            {
+                "success": True,
+                "session_id": session_id,
+                "message": "Session created successfully",
+            },
+            status=201,
+        )
+
     except json.JSONDecodeError:
-        return JsonResponse({
-            'success': False,
-            'message': 'Invalid JSON format'
-        }, status=400)
+        return JsonResponse(
+            {"success": False, "message": "Invalid JSON format"}, status=400
+        )
     except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'message': f'Error creating session: {str(e)}'
-        }, status=500)
+        return JsonResponse(
+            {"success": False, "message": f"Error creating session: {str(e)}"},
+            status=500,
+        )
 
 
 @require_http_methods(["GET"])
@@ -77,32 +81,33 @@ def get_session(request, session_id):
     """
     try:
         session = session_manager.get_session(session_id)
-        
+
         if not session:
-            return JsonResponse({
-                'success': False,
-                'message': 'Session not found'
-            }, status=404)
-        
+            return JsonResponse(
+                {"success": False, "message": "Session not found"}, status=404
+            )
+
         # Get member list
         members = session_manager.get_all_members(session_id)
-        
-        return JsonResponse({
-            'success': True,
-            'session': {
-                'session_id': session['session_id'],
-                'initiator': session['initiator'],
-                'created_at': session['created_at'],
-                'members': members,
-                'structure': session['structure']
+
+        return JsonResponse(
+            {
+                "success": True,
+                "session": {
+                    "session_id": session["session_id"],
+                    "initiator": session["initiator"],
+                    "created_at": session["created_at"],
+                    "members": members,
+                    "structure": session["structure"],
+                },
             }
-        })
-    
+        )
+
     except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'message': f'Error retrieving session: {str(e)}'
-        }, status=500)
+        return JsonResponse(
+            {"success": False, "message": f"Error retrieving session: {str(e)}"},
+            status=500,
+        )
 
 
 @csrf_exempt
@@ -124,50 +129,48 @@ def join_session(request, session_id):
     """
     try:
         data = json.loads(request.body)
-        member_id = data.get('member_id')
-        role = data.get('role', 'viewer')
-        
+        member_id = data.get("member_id")
+        role = data.get("role", "viewer")
+
         if not member_id:
-            return JsonResponse({
-                'success': False,
-                'message': 'Member ID is required'
-            }, status=400)
-        
-        if role not in ['editor', 'viewer']:
-            return JsonResponse({
-                'success': False,
-                'message': 'Invalid role. Must be "editor" or "viewer"'
-            }, status=400)
-        
+            return JsonResponse(
+                {"success": False, "message": "Member ID is required"}, status=400
+            )
+
+        if role not in ["editor", "viewer"]:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": 'Invalid role. Must be "editor" or "viewer"',
+                },
+                status=400,
+            )
+
         if not session_manager.session_exists(session_id):
-            return JsonResponse({
-                'success': False,
-                'message': 'Session not found'
-            }, status=404)
-        
+            return JsonResponse(
+                {"success": False, "message": "Session not found"}, status=404
+            )
+
         success = session_manager.add_member(session_id, member_id, role)
-        
+
         if success:
-            return JsonResponse({
-                'success': True,
-                'message': 'Joined session successfully'
-            })
+            return JsonResponse(
+                {"success": True, "message": "Joined session successfully"}
+            )
         else:
-            return JsonResponse({
-                'success': False,
-                'message': 'Failed to join session'
-            }, status=500)
-    
+            return JsonResponse(
+                {"success": False, "message": "Failed to join session"}, status=500
+            )
+
     except json.JSONDecodeError:
-        return JsonResponse({
-            'success': False,
-            'message': 'Invalid JSON format'
-        }, status=400)
+        return JsonResponse(
+            {"success": False, "message": "Invalid JSON format"}, status=400
+        )
     except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'message': f'Error joining session: {str(e)}'
-        }, status=500)
+        return JsonResponse(
+            {"success": False, "message": f"Error joining session: {str(e)}"},
+            status=500,
+        )
 
 
 @csrf_exempt
@@ -189,32 +192,32 @@ def leave_session(request, session_id):
     """
     try:
         data = json.loads(request.body)
-        member_id = data.get('member_id')
-        
+        member_id = data.get("member_id")
+
         if not member_id:
-            return JsonResponse({
-                'success': False,
-                'message': 'Member ID is required'
-            }, status=400)
-        
+            return JsonResponse(
+                {"success": False, "message": "Member ID is required"}, status=400
+            )
+
         session_destroyed = session_manager.remove_member(session_id, member_id)
-        
-        return JsonResponse({
-            'success': True,
-            'message': 'Left session successfully',
-            'session_destroyed': session_destroyed
-        })
-    
+
+        return JsonResponse(
+            {
+                "success": True,
+                "message": "Left session successfully",
+                "session_destroyed": session_destroyed,
+            }
+        )
+
     except json.JSONDecodeError:
-        return JsonResponse({
-            'success': False,
-            'message': 'Invalid JSON format'
-        }, status=400)
+        return JsonResponse(
+            {"success": False, "message": "Invalid JSON format"}, status=400
+        )
     except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'message': f'Error leaving session: {str(e)}'
-        }, status=500)
+        return JsonResponse(
+            {"success": False, "message": f"Error leaving session: {str(e)}"},
+            status=500,
+        )
 
 
 @csrf_exempt
@@ -237,54 +240,62 @@ def update_permission(request, session_id):
     """
     try:
         data = json.loads(request.body)
-        initiator_id = data.get('initiator_id')
-        member_id = data.get('member_id')
-        role = data.get('role')
-        
+        initiator_id = data.get("initiator_id")
+        member_id = data.get("member_id")
+        role = data.get("role")
+
         if not all([initiator_id, member_id, role]):
-            return JsonResponse({
-                'success': False,
-                'message': 'initiator_id, member_id, and role are required'
-            }, status=400)
-        
-        if role not in ['editor', 'viewer']:
-            return JsonResponse({
-                'success': False,
-                'message': 'Invalid role. Must be "editor" or "viewer"'
-            }, status=400)
-        
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": "initiator_id, member_id, and role are required",
+                },
+                status=400,
+            )
+
+        if role not in ["editor", "viewer"]:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": 'Invalid role. Must be "editor" or "viewer"',
+                },
+                status=400,
+            )
+
         # Verify that the caller is the initiator
         if not session_manager.is_initiator(session_id, initiator_id):
-            return JsonResponse({
-                'success': False,
-                'message': 'Permission denied: only initiator can change permissions'
-            }, status=403)
-        
-        success = session_manager.update_member_role(
-            session_id, member_id, role
-        )
-        
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": "Permission denied: only initiator can change permissions",
+                },
+                status=403,
+            )
+
+        success = session_manager.update_member_role(session_id, member_id, role)
+
         if success:
-            return JsonResponse({
-                'success': True,
-                'message': 'Permission updated successfully'
-            })
+            return JsonResponse(
+                {"success": True, "message": "Permission updated successfully"}
+            )
         else:
-            return JsonResponse({
-                'success': False,
-                'message': 'Failed to update permission. Member may not exist.'
-            }, status=400)
-    
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": "Failed to update permission. Member may not exist.",
+                },
+                status=400,
+            )
+
     except json.JSONDecodeError:
-        return JsonResponse({
-            'success': False,
-            'message': 'Invalid JSON format'
-        }, status=400)
+        return JsonResponse(
+            {"success": False, "message": "Invalid JSON format"}, status=400
+        )
     except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'message': f'Error updating permission: {str(e)}'
-        }, status=500)
+        return JsonResponse(
+            {"success": False, "message": f"Error updating permission: {str(e)}"},
+            status=500,
+        )
 
 
 @require_http_methods(["GET"])
@@ -308,23 +319,19 @@ def list_members(request, session_id):
     """
     try:
         if not session_manager.session_exists(session_id):
-            return JsonResponse({
-                'success': False,
-                'message': 'Session not found'
-            }, status=404)
-        
+            return JsonResponse(
+                {"success": False, "message": "Session not found"}, status=404
+            )
+
         members = session_manager.get_all_members(session_id)
-        
-        return JsonResponse({
-            'success': True,
-            'members': members
-        })
-    
+
+        return JsonResponse({"success": True, "members": members})
+
     except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'message': f'Error retrieving members: {str(e)}'
-        }, status=500)
+        return JsonResponse(
+            {"success": False, "message": f"Error retrieving members: {str(e)}"},
+            status=500,
+        )
 
 
 @require_http_methods(["GET"])
@@ -344,23 +351,19 @@ def get_structure(request, session_id):
     """
     try:
         structure = session_manager.get_structure(session_id)
-        
+
         if structure is None:
-            return JsonResponse({
-                'success': False,
-                'message': 'Session not found'
-            }, status=404)
-        
-        return JsonResponse({
-            'success': True,
-            'structure': structure
-        })
-    
+            return JsonResponse(
+                {"success": False, "message": "Session not found"}, status=404
+            )
+
+        return JsonResponse({"success": True, "structure": structure})
+
     except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'message': f'Error retrieving structure: {str(e)}'
-        }, status=500)
+        return JsonResponse(
+            {"success": False, "message": f"Error retrieving structure: {str(e)}"},
+            status=500,
+        )
 
 
 @require_http_methods(["GET"])
@@ -377,14 +380,20 @@ def session_stats(request):
     """
     try:
         count = session_manager.get_session_count()
-        
-        return JsonResponse({
-            'success': True,
-            'active_sessions': count
-        })
-    
+
+        return JsonResponse({"success": True, "active_sessions": count})
+
     except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'message': f'Error retrieving stats: {str(e)}'
-        }, status=500)
+        return JsonResponse(
+            {"success": False, "message": f"Error retrieving stats: {str(e)}"},
+            status=500,
+        )
+
+
+@require_http_methods(["GET"])
+def collaboration_home(request):
+    """
+    实时协作首页
+    显示协作会话管理界面
+    """
+    return render(request, "RealtimeCollaboration/collaboration_home.html")

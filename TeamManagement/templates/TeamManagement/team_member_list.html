@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ team.name }} - 成员列表{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1>{{ team.name }} - 成员列表</h1>
+            <p class="text-muted">{{ team.description }}</p>
+        </div>
+        <div>
+            {% if can_manage %}
+            <a href="{% url 'TeamManagement:team-member-add' team.pk %}" class="btn btn-primary">
+                <i class="fas fa-user-plus"></i> 添加成员
+            </a>
+            {% endif %}
+            <a href="{% url 'TeamManagement:team-detail' team.pk %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> 返回团队详情
+            </a>
+        </div>
+    </div>
+
+    {% if messages %}
+    <div class="alert-container">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-users"></i> 团队成员 ({{ members|length }})
+            </h5>
+        </div>
+        <div class="card-body">
+            {% if members %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>成员</th>
+                            <th>角色</th>
+                            <th>状态</th>
+                            <th>加入时间</th>
+                            {% if can_manage %}
+                            <th>操作</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for member in members %}
+                        <tr>
+                            <td>
+                                <i class="fas fa-user"></i>
+                                {{ member.user.get_username }}
+                                {% if member.user.get_full_name %}
+                                <small class="text-muted">({{ member.user.get_full_name }})</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-info">{{ member.role }}</span>
+                            </td>
+                            <td>
+                                {% if member.is_active %}
+                                <span class="badge bg-success">激活</span>
+                                {% else %}
+                                <span class="badge bg-secondary">未激活</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ member.joined_at|date:"Y-m-d H:i" }}</td>
+                            {% if can_manage %}
+                            <td>
+                                <form method="post"
+                                      action="{% url 'TeamManagement:team-member-remove' team.pk member.pk %}"
+                                      style="display: inline;"
+                                      onsubmit="return confirm('确定要移除该成员吗？');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-danger">
+                                        <i class="fas fa-user-minus"></i> 移除
+                                    </button>
+                                </form>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> 该团队暂无成员
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
