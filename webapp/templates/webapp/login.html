@@ -1,0 +1,133 @@
+{% extends 'webapp/base.html' %}
+
+{% block title %}登录 - DevTeamFlow{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-4">
+        <div class="card shadow">
+            <div class="card-body p-5">
+                <!-- Logo -->
+                <div class="text-center mb-4">
+                    <h1 class="h3 text-primary">
+                        <i class="fas fa-project-diagram"></i> DevTeamFlow
+                    </h1>
+                    <p class="text-muted">项目管理系统</p>
+                </div>
+
+                <!-- 登录表单 -->
+                <form method="post">
+                    {% csrf_token %}
+
+                    <!-- 用户名 -->
+                    <div class="mb-3">
+                        <label for="id_username" class="form-label">
+                            <i class="fas fa-user"></i> 用户名
+                        </label>
+                        <input type="text"
+                               class="form-control{% if form.username.errors %} is-invalid{% endif %}"
+                               name="username"
+                               id="id_username"
+                               placeholder="请输入用户名"
+                               required>
+                        {% if form.username.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.username.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- 密码 -->
+                    <div class="mb-3">
+                        <label for="id_password" class="form-label">
+                            <i class="fas fa-lock"></i> 密码
+                        </label>
+                        <input type="password"
+                               class="form-control{% if form.password.errors %} is-invalid{% endif %}"
+                               name="password"
+                               id="id_password"
+                               placeholder="请输入密码"
+                               required>
+                        {% if form.password.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.password.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- 记住我 -->
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" name="remember_me" id="id_remember_me">
+                        <label class="form-check-label" for="id_remember_me">
+                            记住我
+                        </label>
+                    </div>
+
+                    <!-- 错误提示 -->
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger" role="alert">
+                            {% for error in form.non_field_errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <!-- 登录按钮 -->
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-sign-in-alt"></i> 登录
+                        </button>
+                    </div>
+                </form>
+
+                <!-- 快速登录 -->
+                <hr class="my-4">
+                <div class="text-center">
+                    <small class="text-muted">快速登录（演示）</small>
+                </div>
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-outline-primary" onclick="quickLogin('admin')">
+                        <i class="fas fa-user-shield"></i> 管理员登录
+                    </button>
+                    <button type="button" class="btn btn-outline-success" onclick="quickLogin('user')">
+                        <i class="fas fa-user"></i> 普通用户登录
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function quickLogin(type) {
+    const form = document.querySelector('form');
+    const usernameInput = document.getElementById('id_username');
+    const passwordInput = document.getElementById('id_password');
+
+    if (type === 'admin') {
+        usernameInput.value = 'admin';
+        passwordInput.value = 'admin123';
+    } else if (type === 'user') {
+        usernameInput.value = 'user';
+        passwordInput.value = 'user123';
+    }
+
+    // 提示信息
+    const alertDiv = document.createElement('div');
+    alertDiv.className = 'alert alert-info mt-3';
+    alertDiv.innerHTML = '<i class="fas fa-info-circle"></i> 已填充登录信息，请点击登录按钮';
+    form.appendChild(alertDiv);
+
+    // 3秒后移除提示
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 3000);
+}
+</script>
+{% endblock %}

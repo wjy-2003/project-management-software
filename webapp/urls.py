@@ -17,21 +17,23 @@ Including another URLconf
 
 from django.conf import settings
 from django.conf.urls.static import static
-from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path
+from django.views.generic import RedirectView
 
 from . import views
+from .admin import custom_admin_site
 
 urlpatterns = [
-    # 登录页面暂时使用admin
-    path("login/", admin.site.urls),
-    # 主页重定向到仪表板
-    path("", views.DashboardView.as_view(), name="home"),
+    # 自定义登录页面
+    path("login/", views.CustomLoginView.as_view(), name="login"),
+    path("", RedirectView.as_view(url="/login/", permanent=False)),
     # 主要功能页面
     path("dashboard/", views.DashboardView.as_view(), name="dashboard"),
-    # 项目管理
+    # 项目管理 - webapp层的视图
     path("projects/", views.ProjectListView.as_view(), name="project_list"),
+    # 项目管理 - ProjectManagement应用的URL
+    path("project-management/", include("ProjectManagement.urls")),
     path(
         "project/<int:pk>/",
         views.TemplateView.as_view(template_name="webapp/project_detail.html"),
@@ -78,12 +80,16 @@ urlpatterns = [
     path("collab/", views.realtime_collab_redirect, name="realtime_collab"),
     # 登录/登出
     path("logout/", auth_views.LogoutView.as_view(next_page="login"), name="logout"),
-    path("login/", admin.site.urls),
+    # 管理后台
+    path("admin/", custom_admin_site.urls),
+    # API路由
     path("api/collaboration/", include("RealtimeCollaboration.urls")),
-    # path("admin/", admin.site.urls),
-    path("", include("ProjectManagement.urls")),
+    # Git集成
     path("git/", include("GitIntegration.urls")),
+    # 团队管理
+    path("teams/", include("TeamManagement.urls")),
 ]
+
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
