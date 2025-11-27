@@ -1,0 +1,205 @@
+{% extends 'base.html' %}
+
+{% block title %}实时协作{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h1><i class="fas fa-users"></i> 实时协作</h1>
+            <p class="text-muted">创建和管理协作会话</p>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-plus-circle"></i> 创建新会话</h5>
+                </div>
+                <div class="card-body">
+                    <form id="createSessionForm">
+                        <div class="mb-3">
+                            <label for="initiator" class="form-label">发起人ID</label>
+                            <input type="text" class="form-control" id="initiator" name="initiator"
+                                   placeholder="输入您的用户ID" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-rocket"></i> 创建会话
+                        </button>
+                    </form>
+                    <div id="createResult" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-door-open"></i> 加入会话</h5>
+                </div>
+                <div class="card-body">
+                    <form id="joinSessionForm">
+                        <div class="mb-3">
+                            <label for="sessionId" class="form-label">会话ID</label>
+                            <input type="text" class="form-control" id="sessionId" name="sessionId"
+                                   placeholder="输入会话ID" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="userId" class="form-label">用户ID</label>
+                            <input type="text" class="form-control" id="userId" name="userId"
+                                   placeholder="输入您的用户ID" required>
+                        </div>
+                        <button type="submit" class="btn btn-info">
+                            <i class="fas fa-sign-in-alt"></i> 加入会话
+                        </button>
+                    </form>
+                    <div id="joinResult" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-bar"></i> 会话统计</h5>
+                </div>
+                <div class="card-body">
+                    <button class="btn btn-success" onclick="loadStats()">
+                        <i class="fas fa-sync"></i> 刷新统计
+                    </button>
+                    <div id="statsResult" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 创建会话
+document.getElementById('createSessionForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const initiator = document.getElementById('initiator').value;
+    const resultDiv = document.getElementById('createResult');
+
+    try {
+        const response = await fetch('/api/collaboration/sessions/create/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ initiator })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-success">
+                    <strong>成功！</strong><br>
+                    会话ID: <code>${data.session_id}</code><br>
+                    <small>${data.message}</small><br>
+                    <small>正在跳转到会话页面...</small>
+                </div>
+            `;
+            // 跳转到会话 API 端点
+            setTimeout(() => {
+                window.location.href = `/api/collaboration/sessions/${data.session_id}/`;
+            }, 1000);
+        } else {
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <strong>失败：</strong> ${data.message}
+                </div>
+            `;
+        }
+    } catch (error) {
+        resultDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <strong>错误：</strong> ${error.message}
+            </div>
+        `;
+    }
+});
+
+// 加入会话
+document.getElementById('joinSessionForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const sessionId = document.getElementById('sessionId').value;
+    const userId = document.getElementById('userId').value;
+    const resultDiv = document.getElementById('joinResult');
+
+    try {
+        const response = await fetch(`/api/collaboration/sessions/${sessionId}/join/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ user_id: userId })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-success">
+                    <strong>成功！</strong><br>
+                    ${data.message}
+                </div>
+            `;
+        } else {
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <strong>失败：</strong> ${data.message}
+                </div>
+            `;
+        }
+    } catch (error) {
+        resultDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <strong>错误：</strong> ${error.message}
+            </div>
+        `;
+    }
+});
+
+// 加载统计
+async function loadStats() {
+    const resultDiv = document.getElementById('statsResult');
+
+    try {
+        const response = await fetch('/api/collaboration/stats/');
+        const data = await response.json();
+
+        if (data.success) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-info">
+                    <h5><i class="fas fa-info-circle"></i> 当前活跃会话数</h5>
+                    <h2 class="mb-0">${data.active_sessions}</h2>
+                </div>
+            `;
+        } else {
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <strong>失败：</strong> ${data.message}
+                </div>
+            `;
+        }
+    } catch (error) {
+        resultDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <strong>错误：</strong> ${error.message}
+            </div>
+        `;
+    }
+}
+
+// 页面加载时自动加载统计
+window.addEventListener('load', loadStats);
+</script>
+{% endblock %}
