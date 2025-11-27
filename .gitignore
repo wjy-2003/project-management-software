@@ -5,12 +5,17 @@ webapp/__pycache__/
 *.pyo
 *.pyd
 
+/pmsvenv
+
 # VSCode
 .vscode/
 
 # Django static/media
 static/
 media/
+
+# .idea
+.idea/
 
 # Pre-commit/patch cache
 .cache/
