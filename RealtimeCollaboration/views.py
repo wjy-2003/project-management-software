@@ -40,7 +40,7 @@ def create_session(request):
                 try:
                     body_data = json.loads(request.body)
                     initiator = body_data.get('initiator', 'user_' + str(hash(request.META.get('REMOTE_ADDR', '')) % 1000000))
-                except:
+                except json.JSONDecodeError:
                     initiator = 'user_' + str(hash(request.META.get('REMOTE_ADDR', '')) % 1000000)
             else:
                 return JsonResponse({"success": False, "message": "请先登录"}, status=401)
