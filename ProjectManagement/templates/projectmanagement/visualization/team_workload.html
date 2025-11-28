@@ -1,0 +1,575 @@
+{% extends 'projectmanagement/base.html' %}
+{% load static %}
+
+{% block title %}团队工作负载 — {{ project.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .visualization-header {
+        background: linear-gradient(135deg, #6f42c1 0%, #a855f7 100%);
+        color: white;
+        padding: 2rem;
+        margin: -2rem -2rem 0;
+        border-radius: 8px;
+        text-align: center;
+    }
+
+    .team-overview {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin: 2rem 0;
+    }
+
+    .overview-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        text-align: center;
+        border-top: 4px solid;
+        transition: transform 0.2s;
+    }
+
+    .overview-card:hover {
+        transform: translateY(-2px);
+    }
+
+    .overview-card.members { border-top-color: #6f42c1; }
+    .overview-card.hours { border-top-color: #007bff; }
+    .overview-card.tasks { border-top-color: #28a745; }
+    .overview-card.efficiency { border-top-color: #ffc107; }
+
+    .chart-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+        margin: 2rem 0;
+    }
+
+    @media (max-width: 992px) {
+        .chart-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .chart-container {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+    }
+
+    .chart-wrapper {
+        position: relative;
+        height: 400px;
+        width: 100%;
+    }
+
+    .team-table-container {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        margin: 2rem 0;
+    }
+
+    .team-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .team-table th {
+        background: linear-gradient(135deg, #6f42c1, #a855f7);
+        color: white;
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        border: none;
+    }
+
+    .team-table th:first-child {
+        border-top-left-radius: 8px;
+    }
+
+    .team-table th:last-child {
+        border-top-right-radius: 8px;
+    }
+
+    .team-table td {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .team-table tr:hover {
+        background-color: #f8f9fa;
+    }
+
+    .team-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .member-name {
+        font-weight: 600;
+        color: #495057;
+    }
+
+    .member-role {
+        font-size: 0.875rem;
+        color: #6c757d;
+    }
+
+    .progress-bar-container {
+        background: #e9ecef;
+        border-radius: 10px;
+        overflow: hidden;
+        height: 20px;
+        width: 100px;
+        display: inline-block;
+    }
+
+    .progress-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #28a745, #20c997);
+        border-radius: 10px;
+        transition: width 0.5s ease;
+    }
+
+    .metric-value {
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: #333;
+        margin: 0.5rem 0;
+    }
+
+    .metric-label {
+        font-size: 1rem;
+        color: #666;
+        margin-bottom: 1rem;
+    }
+
+    .metric-detail {
+        font-size: 0.9rem;
+        color: #888;
+    }
+
+    .navigation-links {
+        display: flex;
+        gap: 1rem;
+        margin: 2rem 0;
+        flex-wrap: wrap;
+    }
+
+    .nav-link {
+        background: linear-gradient(135deg, #6f42c1 0%, #a855f7 100%);
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 6px;
+        text-decoration: none;
+        transition: transform 0.2s;
+    }
+
+    .nav-link:hover {
+        transform: translateY(-2px);
+        color: white;
+        text-decoration: none;
+    }
+
+    .badge-success {
+        background: #28a745;
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.875rem;
+    }
+
+    .badge-warning {
+        background: #ffc107;
+        color: #212529;
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.875rem;
+    }
+
+    .badge-danger {
+        background: #dc3545;
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.875rem;
+    }
+
+    .efficiency-high { color: #28a745; }
+    .efficiency-medium { color: #ffc107; }
+    .efficiency-low { color: #dc3545; }
+</style>
+{% endblock %}
+
+{% block project_content %}
+<div class="container-fluid">
+    <div class="visualization-header">
+        <h1>{{ project.title }} — 团队工作负载</h1>
+        <p class="mb-0">{{ project.project_number }} | 团队成员任务分配情况</p>
+    </div>
+
+    <!-- 导航链接 -->
+    <div class="navigation-links">
+        <a href="{% url 'projectmanagement:project_dashboard' project.project_number %}" class="nav-link">
+            📊 仪表板
+        </a>
+        <a href="{% url 'projectmanagement:project_progress_chart' project.project_number %}" class="nav-link">
+            📈 项目进度
+        </a>
+        <a href="{% url 'projectmanagement:project_burndown_chart' project.project_number %}" class="nav-link">
+            📉 燃尽图
+        </a>
+        <a href="{% url 'projectmanagement:task_timeline_chart' project.project_number %}" class="nav-link">
+            📅 时间线
+        </a>
+        <a href="{% url 'projectmanagement:project_info' project.project_number %}" class="nav-link">
+            🔙 返回项目
+        </a>
+    </div>
+
+    <!-- 团队概览 -->
+    <div class="team-overview">
+        <div class="overview-card members">
+            <h3>👥 团队规模</h3>
+            <div class="metric-value">{{ total_team_members }}</div>
+            <div class="metric-label">项目成员</div>
+            <div class="metric-detail">参与项目的总人数</div>
+        </div>
+
+        <div class="overview-card hours">
+            <h3>⏱️ 总工时</h3>
+            <div class="metric-value">{{ total_assigned_hours }}</div>
+            <div class="metric-label">分配工时</div>
+            <div class="metric-detail">团队成员总工时分配</div>
+        </div>
+
+        <div class="overview-card tasks">
+            <h3>📋 总任务数</h3>
+            <div class="metric-value">{% for member in team_data %}{% if forloop.first %}{{ member.total_tasks }}{% endif %}{% endfor %}</div>
+            <div class="metric-label">任务分配</div>
+            <div class="metric-detail">分配给团队的任务总数</div>
+        </div>
+
+        <div class="overview-card efficiency">
+            <h3>📊 平均效率</h3>
+            <div class="metric-value">{% if team_data %}{{ team_data|list|slice:':1'|first|lookup:'completion_rate' }}{% else %}0{% endif %}%</div>
+            <div class="metric-label">完成率</div>
+            <div class="metric-detail">团队平均任务完成率</div>
+        </div>
+    </div>
+
+    <!-- 图表网格 -->
+    <div class="chart-grid">
+        <!-- 团队成员工时分配 -->
+        <div class="chart-container">
+            <h3 class="mb-4">⏱️ 团队成员工时分配</h3>
+            <div class="chart-wrapper">
+                <canvas id="hoursAllocationChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 任务完成率对比 -->
+        <div class="chart-container">
+            <h3 class="mb-4">📊 任务完成率对比</h3>
+            <div class="chart-wrapper">
+                <canvas id="completionRateChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 成员任务数量分布 -->
+        <div class="chart-container">
+            <h3 class="mb-4">📋 成员任务数量分布</h3>
+            <div class="chart-wrapper">
+                <canvas id="taskDistributionChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 团队效率分析 -->
+        <div class="chart-container">
+            <h3 class="mb-4">📈 团队效率分析</h3>
+            <div class="chart-wrapper">
+                <canvas id="efficiencyChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- 团队成员详细表格 -->
+    <div class="team-table-container">
+        <h3 class="mb-4">👥 团队成员详细情况</h3>
+        <div class="table-responsive">
+            <table class="team-table">
+                <thead>
+                    <tr>
+                        <th>成员</th>
+                        <th>角色</th>
+                        <th>总任务</th>
+                        <th>已完成</th>
+                        <th>分配工时</th>
+                        <th>完成工时</th>
+                        <th>完成率</th>
+                        <th>状态</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for member in team_data %}
+                    <tr>
+                        <td>
+                            <div class="member-name">{{ member.member_name }}</div>
+                        </td>
+                        <td>
+                            <span class="member-role">{{ member.member_role }}</span>
+                        </td>
+                        <td>
+                            <strong>{{ member.total_tasks }}</strong>
+                        </td>
+                        <td>
+                            <strong>{{ member.completed_tasks }}</strong>
+                        </td>
+                        <td>
+                            {{ member.assigned_hours }}h
+                        </td>
+                        <td>
+                            {{ member.completed_hours }}h
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <span class="mr-2">{{ member.completion_rate }}%</span>
+                                <div class="progress-bar-container">
+                                    <div class="progress-bar-fill" style="width: {{ member.completion_rate }}%"></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            {% if member.completion_rate >= 80 %}
+                                <span class="badge-success">高效</span>
+                            {% elif member.completion_rate >= 50 %}
+                                <span class="badge-warning">正常</span>
+                            {% else %}
+                                <span class="badge-danger">待提升</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">
+                            暂无团队成员数据
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 设置Chart.js默认字体
+    Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+
+    const teamData = {{ team_data|safe }};
+
+    // 团队成员工时分配图
+    const hoursCtx = document.getElementById('hoursAllocationChart').getContext('2d');
+    new Chart(hoursCtx, {
+        type: 'bar',
+        data: {
+            labels: teamData.map(member => member.member_name),
+            datasets: [{
+                label: '分配工时',
+                data: teamData.map(member => member.assigned_hours),
+                backgroundColor: 'rgba(111, 66, 193, 0.8)',
+                borderColor: 'rgba(111, 66, 193, 1)',
+                borderWidth: 2,
+                borderRadius: 8
+            }, {
+                label: '完成工时',
+                data: teamData.map(member => member.completed_hours),
+                backgroundColor: 'rgba(40, 167, 69, 0.8)',
+                borderColor: 'rgba(40, 167, 69, 1)',
+                borderWidth: 2,
+                borderRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: '工时 (小时)'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
+            }
+        }
+    });
+
+    // 任务完成率对比图
+    const completionCtx = document.getElementById('completionRateChart').getContext('2d');
+    new Chart(completionCtx, {
+        type: 'line',
+        data: {
+            labels: teamData.map(member => member.member_name),
+            datasets: [{
+                label: '完成率 (%)',
+                data: teamData.map(member => member.completion_rate),
+                borderColor: 'rgba(255, 193, 7, 1)',
+                backgroundColor: 'rgba(255, 193, 7, 0.2)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4,
+                pointBackgroundColor: 'rgba(255, 193, 7, 1)',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 6,
+                pointHoverRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    title: {
+                        display: true,
+                        text: '完成率 (%)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+
+    // 成员任务数量分布图
+    const taskDistCtx = document.getElementById('taskDistributionChart').getContext('2d');
+    new Chart(taskDistCtx, {
+        type: 'pie',
+        data: {
+            labels: teamData.map(member => member.member_name),
+            datasets: [{
+                data: teamData.map(member => member.total_tasks),
+                backgroundColor: [
+                    'rgba(111, 66, 193, 0.8)',
+                    'rgba(40, 167, 69, 0.8)',
+                    'rgba(0, 123, 255, 0.8)',
+                    'rgba(255, 193, 7, 0.8)',
+                    'rgba(220, 53, 69, 0.8)',
+                    'rgba(23, 162, 184, 0.8)',
+                    'rgba(108, 117, 125, 0.8)',
+                    'rgba(255, 133, 27, 0.8)'
+                ],
+                borderColor: [
+                    'rgba(111, 66, 193, 1)',
+                    'rgba(40, 167, 69, 1)',
+                    'rgba(0, 123, 255, 1)',
+                    'rgba(255, 193, 7, 1)',
+                    'rgba(220, 53, 69, 1)',
+                    'rgba(23, 162, 184, 1)',
+                    'rgba(108, 117, 125, 1)',
+                    'rgba(255, 133, 27, 1)'
+                ],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        padding: 15,
+                        usePointStyle: true
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.parsed;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((value / total) * 100).toFixed(1);
+                            return `${label}: ${value} 个任务 (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // 团队效率分析图
+    const efficiencyCtx = document.getElementById('efficiencyChart').getContext('2d');
+    new Chart(efficiencyCtx, {
+        type: 'radar',
+        data: {
+            labels: ['任务数量', '完成率', '工时利用', '工作效率', '任务质量'],
+            datasets: teamData.map((member, index) => ({
+                label: member.member_name,
+                data: [
+                    (member.total_tasks / 10) * 100, // 假设最多10个任务为100%
+                    member.completion_rate,
+                    (member.completed_hours / member.assigned_hours) * 100, // 工时利用率
+                    member.completion_rate, // 用完成率代表工作效率
+                    member.completion_rate  // 用完成率代表任务质量
+                ],
+                borderColor: `hsla(${index * 45}, 70%, 50%, 1)`,
+                backgroundColor: `hsla(${index * 45}, 70%, 50%, 0.2)`,
+                borderWidth: 2,
+                pointBackgroundColor: `hsla(${index * 45}, 70%, 50%, 1)`,
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 4
+            }))
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                r: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        stepSize: 20,
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

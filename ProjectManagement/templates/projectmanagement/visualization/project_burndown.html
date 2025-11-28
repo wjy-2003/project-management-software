@@ -1,0 +1,422 @@
+{% extends 'projectmanagement/base.html' %}
+{% load static %}
+
+{% block title %}项目燃尽图 — {{ project.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .visualization-header {
+        background: linear-gradient(135deg, #FF6B6B 0%, #4ECDC4 100%);
+        color: white;
+        padding: 2rem;
+        margin: -2rem -2rem 0;
+        border-radius: 8px;
+        text-align: center;
+    }
+
+    .burndown-info {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin: 2rem 0;
+    }
+
+    .info-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        text-align: center;
+        border-left: 4px solid;
+        transition: transform 0.2s;
+    }
+
+    .info-card:hover {
+        transform: translateY(-2px);
+    }
+
+    .info-card.start { border-left-color: #28a745; }
+    .info-card.end { border-left-color: #dc3545; }
+    .info-card.total { border-left-color: #007bff; }
+    .info-card.remaining { border-left-color: #ffc107; }
+
+    .chart-container {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        margin: 2rem 0;
+    }
+
+    .chart-wrapper {
+        position: relative;
+        height: 70vh;
+        width: 100%;
+        min-height: 500px;
+    }
+
+    .metric-value {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #333;
+        margin: 0.5rem 0;
+    }
+
+    .metric-label {
+        font-size: 1rem;
+        color: #666;
+        margin-bottom: 0.5rem;
+    }
+
+    .metric-detail {
+        font-size: 0.9rem;
+        color: #888;
+    }
+
+    .navigation-links {
+        display: flex;
+        gap: 1rem;
+        margin: 2rem 0;
+        flex-wrap: wrap;
+    }
+
+    .nav-link {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 6px;
+        text-decoration: none;
+        transition: transform 0.2s;
+    }
+
+    .nav-link:hover {
+        transform: translateY(-2px);
+        color: white;
+        text-decoration: none;
+    }
+
+    .legend-custom {
+        display: flex;
+        justify-content: center;
+        gap: 2rem;
+        margin: 1rem 0;
+        flex-wrap: wrap;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .legend-color {
+        width: 20px;
+        height: 3px;
+        border-radius: 2px;
+    }
+
+    .legend-ideal {
+        background: #ff6384;
+        border-top: 2px dashed #ff6384;
+        height: 5px;
+    }
+
+    .legend-actual {
+        background: #36a2eb;
+        height: 3px;
+    }
+
+    .alert-warning {
+        background: #fff3cd;
+        border: 1px solid #ffeaa7;
+        border-radius: 8px;
+        padding: 1rem;
+        margin: 1rem 0;
+        color: #856404;
+    }
+
+    .status-indicator {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        margin-left: 0.5rem;
+    }
+
+    .status-good { background: #d4edda; color: #155724; }
+    .status-warning { background: #fff3cd; color: #856404; }
+    .status-danger { background: #f8d7da; color: #721c24; }
+</style>
+{% endblock %}
+
+{% block project_content %}
+<div class="container-fluid">
+    <div class="visualization-header">
+        <h1>{{ project.title }} — 项目燃尽图</h1>
+        <p class="mb-0">{{ project.project_number }} | 状态: {{ project.get_status_display }}
+            {% if project.status == 'completed' %}
+                <span class="status-indicator status-good">已完成</span>
+            {% elif project.status == 'in_progress' %}
+                <span class="status-indicator status-warning">进行中</span>
+            {% else %}
+                <span class="status-indicator status-danger">未开始</span>
+            {% endif %}
+        </p>
+    </div>
+
+    <!-- 导航链接 -->
+    <div class="navigation-links">
+        <a href="{% url 'projectmanagement:project_dashboard' project.project_number %}" class="nav-link">
+            📊 仪表板
+        </a>
+        <a href="{% url 'projectmanagement:project_info' project.project_number %}" class="nav-link">
+            🔙 返回项目
+        </a>
+    </div>
+
+    {% if error %}
+        <div class="alert-warning">
+            <strong>⚠️ 警告:</strong> {{ error }}
+        </div>
+    {% else %}
+        <!-- 项目信息 -->
+        <div class="burndown-info">
+            <div class="info-card start">
+                <h3>🚀 项目开始</h3>
+                <div class="metric-value">{{ start_date }}</div>
+                <div class="metric-detail">实际/计划开始日期</div>
+            </div>
+
+            <div class="info-card end">
+                <h3>🏁 项目结束</h3>
+                <div class="metric-value">{{ end_date }}</div>
+                <div class="metric-detail">预计/实际结束日期</div>
+            </div>
+
+            <div class="info-card total">
+                <h3>📊 总工时</h3>
+                <div class="metric-value">{{ project.estimated_hours }}h</div>
+                <div class="metric-detail">项目预计总工时</div>
+            </div>
+
+            <div class="info-card remaining">
+                <h3>⏰ 剩余工时</h3>
+                <div class="metric-value">{{ project.remaining_hours }}h</div>
+                <div class="metric-detail">当前剩余工时</div>
+            </div>
+        </div>
+
+        <!-- 燃尽图 -->
+        <div class="chart-container">
+            <h3 class="text-center mb-4">📉 项目燃尽趋势</h3>
+
+            <!-- 自定义图例 -->
+            <div class="legend-custom">
+                <div class="legend-item">
+                    <div class="legend-color legend-ideal"></div>
+                    <span>理想燃尽线</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color legend-actual"></div>
+                    <span>实际燃尽线</span>
+                </div>
+            </div>
+
+            <div class="chart-wrapper">
+                <canvas id="burndownChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 分析说明 -->
+        <div class="container-fluid mt-4">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card border-left-primary">
+                        <div class="card-body">
+                            <h5 class="card-title">💡 燃尽图说明</h5>
+                            <p class="card-text">
+                                <strong>理想燃尽线 (虚线):</strong> 假设工时均匀消耗的理想情况下的燃尽趋势。<br>
+                                <strong>实际燃尽线 (实线):</strong> 基于已完成任务的实际工时消耗情况。<br>
+                                <strong>图表解读:</strong> 如果实际线在理想线之上，表示进度落后；如果在之下，表示进度超前。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card border-left-info">
+                        <div class="card-body">
+                            <h5 class="card-title">📈 项目状态分析</h5>
+                            <p class="card-text">
+                                <strong>当前进度:</strong> {{ project.get_project_progress|floatformat:1 }}% 完成<br>
+                                <strong>工时消耗:</strong> {{ project.consumed_hours }}/{{ project.estimated_hours }} 小时<br>
+                                <strong>项目状态:</strong> {{ project.get_status_display }}<br>
+                                <strong>数据更新:</strong> {% now 'Y-m-d H:i' %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 设置Chart.js默认字体
+    Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+
+    {% if not error %}
+    const ctx = document.getElementById('burndownChart').getContext('2d');
+
+    const idealLine = {{ ideal_burndown|safe }};
+    const actualLine = {{ actual_burndown|safe }};
+    const dates = {{ dates|safe }};
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: dates,
+            datasets: [
+                {
+                    label: '理想燃尽线',
+                    data: idealLine,
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                    borderWidth: 3,
+                    borderDash: [5, 5],
+                    fill: false,
+                    tension: 0,
+                    pointRadius: 0,
+                    pointHoverRadius: 6
+                },
+                {
+                    label: '实际燃尽线',
+                    data: actualLine,
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderWidth: 4,
+                    fill: true,
+                    tension: 0.1,
+                    pointBackgroundColor: 'rgba(54, 162, 235, 1)',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                    pointHoverRadius: 8
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            },
+            plugins: {
+                title: {
+                    display: true,
+                    text: '项目工时燃尽图',
+                    font: {
+                        size: 18,
+                        weight: 'bold'
+                    },
+                    padding: {
+                        top: 10,
+                        bottom: 30
+                    }
+                },
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 20,
+                        font: {
+                            size: 14
+                        }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    titleColor: '#fff',
+                    bodyColor: '#fff',
+                    borderColor: '#ddd',
+                    borderWidth: 1,
+                    cornerRadius: 8,
+                    displayColors: true,
+                    callbacks: {
+                        title: function(context) {
+                            return '📅 ' + context[0].label;
+                        },
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            label += context.parsed.y.toFixed(1) + ' 小时';
+
+                            // 添加进度百分比
+                            const totalHours = {{ project.estimated_hours }};
+                            const percentage = ((totalHours - context.parsed.y) / totalHours * 100).toFixed(1);
+                            label += ' (' + percentage + '% 完成)';
+
+                            return label;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: '日期',
+                        font: {
+                            size: 14,
+                            weight: 'bold'
+                        }
+                    },
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        maxRotation: 45,
+                        minRotation: 45
+                    }
+                },
+                y: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: '剩余工时 (小时)',
+                        font: {
+                            size: 14,
+                            weight: 'bold'
+                        }
+                    },
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return value + 'h';
+                        }
+                    }
+                }
+            },
+            elements: {
+                line: {
+                    borderJoinStyle: 'round'
+                }
+            }
+        }
+    });
+    {% endif %}
+});
+</script>
+{% endblock %}
