@@ -121,6 +121,8 @@ class Task(models.Model):
                 self.status = "not_started"
             elif self.consumed_hours > 0 and self.status == "not_started":
                 self.status = "in_progress"
+            elif self.consumed_hours > 0 and self.status == "suspended":
+                self.status = "in_progress"
             # 移除自动将状态设置为"completed"的逻辑，让用户手动完成任务
             # 已完成任务的状态应该由用户通过task_complete视图函数控制
 
