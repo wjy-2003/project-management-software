@@ -19,6 +19,11 @@ DEBUG = True
 
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "*"]
 
+# Development-only authentication fallback for collaboration features
+# SECURITY: Set to False in production environments!
+# This allows unauthenticated users to create collaboration sessions in development
+ALLOW_DEV_AUTH_FALLBACK = DEBUG
+
 # Application definition
 INSTALLED_APPS = [
     "django.contrib.admin",

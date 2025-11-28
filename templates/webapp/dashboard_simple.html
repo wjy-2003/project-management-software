@@ -80,12 +80,12 @@
                                 {% for project in projects|slice:":5" %}
                                 <tr>
                                     <td>
-                                        <a href="/projects/{{ project.pk }}/" class="text-primary text-decoration-none">
+                                        <a href="{% url 'projectmanagement:project_info' project.project_number %}" class="text-primary text-decoration-none">
                                             {{ project.project_number }}
                                         </a>
                                     </td>
                                     <td>
-                                        <a href="/projects/{{ project.pk }}/" class="text-primary text-decoration-none">
+                                        <a href="{% url 'projectmanagement:project_info' project.project_number %}" class="text-primary text-decoration-none">
                                             {{ project.title }}
                                         </a>
                                     </td>
