@@ -45,7 +45,7 @@
                 <div class="stat-title">激活成员</div>
                 <div class="stat-icon"><i class="fas fa-user-check"></i></div>
             </div>
-            <div class="stat-value">{{ members|length }}</div>
+            <div class="stat-value">{{ members|selectattr:"is_active"|list|length }}</div>
             <div class="stat-description">当前活跃成员</div>
         </div>
 
