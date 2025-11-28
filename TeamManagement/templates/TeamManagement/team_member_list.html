@@ -1,0 +1,150 @@
+{% extends 'TeamManagement/base.html' %}
+
+{% block title %}{{ team.name }} - 成员列表{% endblock %}
+
+{% block team_content %}
+<div class="content-header">
+    <div>
+        <h1><i class="fas fa-users"></i> {{ team.name }} - 成员列表</h1>
+        <div class="text-secondary">{{ team.description }}</div>
+    </div>
+    <div>
+        {% if can_manage %}
+        <a href="{% url 'TeamManagement:team-member-add' team.pk %}" class="btn btn-primary">
+            <i class="fas fa-user-plus"></i> 添加成员
+        </a>
+        {% endif %}
+        <a href="{% url 'TeamManagement:team-detail' team.pk %}" class="btn">
+            <i class="fas fa-arrow-left"></i> 返回团队详情
+        </a>
+    </div>
+</div>
+
+<div class="content-body">
+    {% if messages %}
+    {% for message in messages %}
+    <div class="stat-card {% if message.tags == 'error' %}warning{% elif message.tags == 'success' %}success{% else %}info{% endif %}" style="margin-bottom: 16px;">
+        {{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <!-- Statistics Cards -->
+    <div class="stats-grid" style="margin-bottom: 24px;">
+        <div class="stat-card primary">
+            <div class="stat-header">
+                <div class="stat-title">总成员数</div>
+                <div class="stat-icon"><i class="fas fa-users"></i></div>
+            </div>
+            <div class="stat-value">{{ members|length }}</div>
+            <div class="stat-description">团队成员总数</div>
+        </div>
+
+        <div class="stat-card success">
+            <div class="stat-header">
+                <div class="stat-title">激活成员</div>
+                <div class="stat-icon"><i class="fas fa-user-check"></i></div>
+            </div>
+            <div class="stat-value">{{ members|dictsort:"is_active"|reverse|length }}</div>
+            <div class="stat-description">当前活跃成员</div>
+        </div>
+
+        <div class="stat-card warning">
+            <div class="stat-header">
+                <div class="stat-title">管理员</div>
+                <div class="stat-icon"><i class="fas fa-user-shield"></i></div>
+            </div>
+            <div class="stat-value">{{ members|dictsort:"role"|length }}</div>
+            <div class="stat-description">拥有管理权限</div>
+        </div>
+    </div>
+
+    <div class="data-card">
+        <div class="card-header">
+            <div class="card-title">
+                <i class="fas fa-users"></i>
+                团队成员列表
+                <span class="status-badge" style="margin-left: 8px;">{{ members|length }} 位成员</span>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if members %}
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>成员</th>
+                            <th>角色</th>
+                            <th>状态</th>
+                            <th>加入时间</th>
+                            {% if can_manage %}
+                            <th>操作</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for member in members %}
+                        <tr>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <i class="fas fa-user" style="color: var(--text-secondary);"></i>
+                                    <div>
+                                        <div style="font-weight: 500;">{{ member.user.get_username }}</div>
+                                        {% if member.user.get_full_name %}
+                                        <div class="text-secondary" style="font-size: 12px;">{{ member.user.get_full_name }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="status-badge" style="background: #e6f7ff; color: var(--primary-color);">{{ member.role }}</span>
+                            </td>
+                            <td>
+                                {% if member.is_active %}
+                                <span class="status-badge" style="background: #f6ffed; color: var(--success-color);">激活</span>
+                                {% else %}
+                                <span class="status-badge" style="background: #fff7e6; color: var(--warning-color);">未激活</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ member.joined_at|date:"Y-m-d H:i" }}</td>
+                            {% if can_manage %}
+                            <td>
+                                <div style="display: flex; gap: 8px;">
+                                    <a href="{% url 'TeamManagement:team-member-update' team.pk member.pk %}"
+                                       class="btn btn-sm"
+                                       title="编辑成员">
+                                        <i class="fas fa-edit"></i> 编辑
+                                    </a>
+                                    <form method="post"
+                                          action="{% url 'TeamManagement:team-member-remove' team.pk member.pk %}"
+                                          style="display: inline;"
+                                          onsubmit="return confirm('确定要移除该成员吗？');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm" style="color: var(--error-color); border-color: var(--error-color);">
+                                            <i class="fas fa-user-minus"></i> 移除
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-users"></i>
+                <h3>该团队暂无成员</h3>
+                <p>开始添加团队成员来协作文档</p>
+                {% if can_manage %}
+                <a href="{% url 'TeamManagement:team-member-add' team.pk %}" class="btn btn-primary">
+                    <i class="fas fa-user-plus"></i> 添加第一个成员
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

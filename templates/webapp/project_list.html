@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}项目列表 - 项目管理系统{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3">
+                    <i class="fas fa-project-diagram"></i> 项目列表
+                </h1>
+                <a href="#" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> 新建项目
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 搜索和筛选 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-4">
+                            <input type="text" class="form-control" name="search" placeholder="搜索项目名称或编号..." value="{{ request.GET.search }}">
+                        </div>
+                        <div class="col-md-2">
+                            <select class="form-select" name="status">
+                                <option value="">所有状态</option>
+                                <option value="planning" {% if request.GET.status == 'planning' %}selected{% endif %}>规划中</option>
+                                <option value="in_progress" {% if request.GET.status == 'in_progress' %}selected{% endif %}>进行中</option>
+                                <option value="completed" {% if request.GET.status == 'completed' %}selected{% endif %}>已完成</option>
+                                <option value="suspended" {% if request.GET.status == 'suspended' %}selected{% endif %}>已暂停</option>
+                                <option value="cancelled" {% if request.GET.status == 'cancelled' %}selected{% endif %}>已取消</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-outline-primary">
+                                <i class="fas fa-search"></i> 搜索
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 项目列表 -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-body">
+                    {% if projects %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>项目编号</th>
+                                        <th>项目名称</th>
+                                        <th>描述</th>
+                                        <th>状态</th>
+                                        <th>进度</th>
+                                        <th>计划开始</th>
+                                        <th>计划完成</th>
+                                        <th>可用工日</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for project in projects %}
+                                    <tr>
+                                        <td>
+                                            <span class="badge bg-secondary">{{ project.project_number }}</span>
+                                        </td>
+                                        <td>
+                                            <a href="#" class="text-decoration-none fw-bold">
+                                                {{ project.title }}
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <span class="text-muted" title="{{ project.description }}">
+                                                {{ project.description|truncatechars:50 }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-{{ project.status_class }}">
+                                                {{ project.status_label }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="progress" style="height: 25px;">
+                                                <div class="progress-bar progress-bar-striped progress-bar-animated"
+                                                     role="progressbar"
+                                                     style="width: {{ project.get_project_progress|floatformat:0 }}%"
+                                                     aria-valuenow="{{ project.get_project_progress|floatformat:0 }}"
+                                                     aria-valuemin="0" aria-valuemax="100">
+                                                    {{ project.get_project_progress|floatformat:0 }}%
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>{{ project.planned_start_date|date:"Y-m-d"|default:"-" }}</td>
+                                        <td>{{ project.planned_end_date|date:"Y-m-d"|default:"-" }}</td>
+                                        <td>
+                                            <span class="badge bg-info">{{ project.available_workdays }}</span>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <a href="#" class="btn btn-sm btn-outline-primary" title="查看详情">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                <a href="#" class="btn btn-sm btn-outline-secondary" title="编辑">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                <button type="button" class="btn btn-sm btn-outline-info" title="任务管理">
+                                                    <i class="fas fa-tasks"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- 分页 -->
+                        <nav aria-label="项目列表分页">
+                            <ul class="pagination justify-content-center mt-4">
+                                <li class="page-item disabled">
+                                    <a class="page-link" href="#" tabindex="-1">上一页</a>
+                                </li>
+                                <li class="page-item active">
+                                    <a class="page-link" href="#">1</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="#">2</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="#">3</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="#">下一页</a>
+                                </li>
+                            </ul>
+                        </nav>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-folder-open fa-4x text-muted mb-4"></i>
+                            <h4 class="text-muted">暂无项目数据</h4>
+                            <p class="text-muted">开始创建您的第一个项目吧！</p>
+                            <a href="#" class="btn btn-primary">
+                                <i class="fas fa-plus"></i> 创建新项目
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .progress-bar {
+        min-width: 2em;
+    }
+    .table-hover tbody tr:hover {
+        cursor: pointer;
+    }
+</style>
+{% endblock %}

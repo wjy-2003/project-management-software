@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Git Conflict Resolution - Project Management</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 350px;
+            background: #252526;
+            border-right: 1px solid #3e3e42;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 15px;
+            background: #2d2d30;
+            border-bottom: 1px solid #3e3e42;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .conflicts-container {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .conflict-item {
+            border-bottom: 1px solid #3e3e42;
+            padding: 12px 15px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .conflict-item:hover {
+            background: #2a2d2e;
+        }
+
+        .conflict-item.active {
+            background: #094771;
+            border-left: 3px solid #007acc;
+        }
+
+        .conflict-file-path {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 5px;
+            word-break: break-all;
+        }
+
+        .conflict-status {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            display: inline-block;
+            margin-top: 5px;
+        }
+
+        .conflict-status.both-modified {
+            background: #d16969;
+            color: white;
+        }
+
+        .conflict-status.both-added {
+            background: #4ec9b0;
+            color: white;
+        }
+
+        .conflict-status.deleted {
+            background: #c586c0;
+            color: white;
+        }
+
+        .conflict-segments {
+            margin-top: 8px;
+            font-size: 11px;
+            color: #858585;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .editor-header {
+            padding: 10px 15px;
+            background: #2d2d30;
+            border-bottom: 1px solid #3e3e42;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .file-info {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .resolution-options {
+            display: flex;
+            gap: 10px;
+        }
+
+        .resolution-btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        .resolution-btn.accept-ours {
+            background: #007acc;
+            color: white;
+        }
+
+        .resolution-btn.accept-ours:hover {
+            background: #1177bb;
+        }
+
+        .resolution-btn.accept-theirs {
+            background: #4ec9b0;
+            color: white;
+        }
+
+        .resolution-btn.accept-theirs:hover {
+            background: #3ea58f;
+        }
+
+        .resolution-btn.manual {
+            background: #d16969;
+            color: white;
+        }
+
+        .resolution-btn.manual:hover {
+            background: #c15858;
+        }
+
+        .editor-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        #monaco-editor {
+            flex: 1;
+            min-height: 0;
+        }
+
+        .diff-container {
+            display: none;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .diff-container.active {
+            display: flex;
+        }
+
+        .diff-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #3e3e42;
+        }
+
+        .diff-panel:last-child {
+            border-right: none;
+        }
+
+        .diff-panel-header {
+            padding: 8px 15px;
+            background: #2d2d30;
+            border-bottom: 1px solid #3e3e42;
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .diff-editor {
+            flex: 1;
+            min-height: 0;
+        }
+
+        /* Action Bar */
+        .action-bar {
+            padding: 15px;
+            background: #252526;
+            border-top: 1px solid #3e3e42;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .action-info {
+            font-size: 11px;
+            color: #858585;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #007acc;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #1177bb;
+        }
+
+        .btn-primary:disabled {
+            background: #3e3e42;
+            color: #858585;
+            cursor: not-allowed;
+        }
+
+        .btn-danger {
+            background: #d16969;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c15858;
+        }
+
+        .btn-secondary {
+            background: #3e3e42;
+            color: #cccccc;
+        }
+
+        .btn-secondary:hover {
+            background: #4a4a4a;
+        }
+
+        /* Empty State */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #858585;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .empty-state-text {
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        .empty-state-subtext {
+            font-size: 13px;
+            color: #6a6a6a;
+        }
+
+        /* Loading */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #858585;
+        }
+
+        .loading.show {
+            display: flex;
+        }
+
+        /* Conflict Markers in Editor */
+        .conflict-marker-theirs {
+            background: rgba(78, 201, 176, 0.1);
+            border-left: 3px solid #4ec9b0;
+            padding-left: 8px;
+        }
+
+        .conflict-marker-ours {
+            background: rgba(0, 122, 204, 0.1);
+            border-left: 3px solid #007acc;
+            padding-left: 8px;
+        }
+
+        .conflict-marker-base {
+            background: rgba(209, 105, 105, 0.1);
+            border-left: 3px solid #d16969;
+            padding-left: 8px;
+        }
+
+        .conflict-marker-separator {
+            background: rgba(193, 134, 192, 0.1);
+            border-left: 3px solid #c586c0;
+            padding-left: 8px;
+            font-weight: bold;
+            color: #c586c0;
+        }
+
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 4px;
+            color: white;
+            font-size: 14px;
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: all 0.3s ease;
+            z-index: 1000;
+            max-width: 400px;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .toast.success {
+            background: #4ec9b0;
+        }
+
+        .toast.error {
+            background: #d16969;
+        }
+
+        .toast.info {
+            background: #007acc;
+        }
+
+        /* Resolution Summary */
+        .resolution-summary {
+            margin-top: 15px;
+            padding: 15px;
+            background: #2d2d30;
+            border-radius: 4px;
+            border: 1px solid #3e3e42;
+        }
+
+        .resolution-summary h3 {
+            font-size: 13px;
+            margin-bottom: 10px;
+            color: #cccccc;
+        }
+
+        .resolved-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 0;
+            font-size: 12px;
+        }
+
+        .resolved-item .choice {
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 11px;
+        }
+
+        .resolved-item .choice.ours {
+            background: #007acc;
+            color: white;
+        }
+
+        .resolved-item .choice.theirs {
+            background: #4ec9b0;
+            color: white;
+        }
+
+        .resolved-item .choice.manual {
+            background: #d16969;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>Resolve Conflicts</div>
+                    <button onclick="window.location.href='/git/graph/'" style="background: #007acc; color: white; border: none; padding: 4px 8px; border-radius: 3px; font-size: 11px; cursor: pointer;">Back to Graph</button>
+                </div>
+                <div class="git-repo-info" id="git-repo-info" style="margin-top: 5px; font-size: 11px; color: #666; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Default repository</div>
+            </div>
+
+            <div class="conflicts-container" id="conflicts-container">
+                <div class="loading show" id="loading">Loading conflicts...</div>
+                <div class="empty-state" id="empty-state" style="display: none;">
+                    <div class="empty-state-icon">✅</div>
+                    <div class="empty-state-text">No conflicts detected</div>
+                    <div class="empty-state-subtext">All changes have been successfully merged</div>
+                </div>
+            </div>
+
+            <div class="resolution-summary" id="resolution-summary" style="display: none;">
+                <h3>Resolution Summary</h3>
+                <div id="resolved-list"></div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="editor-header" id="editor-header" style="display: none;">
+                <div class="file-info" id="file-info">Select a conflicted file</div>
+                <div class="resolution-options">
+                    <button class="resolution-btn accept-ours" onclick="acceptOurs()">
+                        Accept Ours
+                    </button>
+                    <button class="resolution-btn accept-theirs" onclick="acceptTheirs()">
+                        Accept Theirs
+                    </button>
+                    <button class="resolution-btn manual" onclick="enableManualEdit()">
+                        Manual Edit
+                    </button>
+                </div>
+            </div>
+
+            <div class="editor-container">
+                <div id="monaco-editor"></div>
+            </div>
+
+            <div class="action-bar">
+                <div class="action-info">
+                    <span id="conflict-info">No conflicts loaded</span>
+                </div>
+                <div class="action-buttons">
+                    <button class="btn btn-secondary" onclick="refreshConflicts()">Refresh</button>
+                    <button class="btn btn-danger" onclick="abortMerge()">Abort Merge</button>
+                    <button class="btn btn-primary" id="continue-btn" onclick="continueMerge()" disabled>Continue Merge</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast" class="toast"></div>
+
+    <!-- Monaco Editor -->
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
+    <script>
+        let editor;
+        let conflicts = [];
+        let currentConflict = null;
+        let resolutions = new Map(); // Store resolutions for each file
+
+        // Initialize Monaco Editor
+        require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs' } });
+        require(['vs/editor/editor.main'], function () {
+            editor = monaco.editor.create(document.getElementById('monaco-editor'), {
+                value: '',
+                language: 'plaintext',
+                theme: 'vs-dark',
+                readOnly: false,
+                automaticLayout: true,
+                minimap: { enabled: false },
+                scrollBeyondLastLine: false,
+                fontSize: 12,
+                fontFamily: 'Consolas, Monaco, monospace',
+                lineNumbers: 'on',
+                renderWhitespace: 'selection',
+                wordWrap: 'on'
+            });
+
+            // Load initial conflicts
+            loadConflicts();
+        });
+
+        // Load conflicts
+        function loadConflicts() {
+            document.getElementById('loading').classList.add('show');
+            document.getElementById('empty-state').style.display = 'none';
+            document.getElementById('conflicts-container').querySelectorAll('.conflict-item').forEach(el => el.remove());
+
+            fetch('/git/conflicts/api/')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        conflicts = data.conflicts;
+                        displayConflicts(conflicts);
+                        updateConflictInfo();
+                    } else {
+                        showToast(data.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    showToast('Failed to load conflicts', 'error');
+                })
+                .finally(() => {
+                    document.getElementById('loading').classList.remove('show');
+                });
+
+            // Also load current git path
+            loadGitPath();
+        }
+
+        // Load current git path
+        function loadGitPath() {
+            fetch('/git/get-path/')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const repoInfo = document.getElementById('git-repo-info');
+                        repoInfo.textContent = data.git_path;
+                        repoInfo.title = data.git_path;
+                    }
+                })
+                .catch(error => {
+                    console.error('Failed to load git path:', error);
+                });
+        }
+
+        // Display conflicts in sidebar
+        function displayConflicts(conflictList) {
+            const container = document.getElementById('conflicts-container');
+
+            if (conflictList.length === 0) {
+                document.getElementById('empty-state').style.display = 'flex';
+                document.getElementById('editor-header').style.display = 'none';
+                editor.setValue('No conflicts to resolve.');
+                return;
+            }
+
+            conflictList.forEach((conflict, index) => {
+                const item = document.createElement('div');
+                item.className = 'conflict-item';
+                item.dataset.index = index;
+
+                const statusClass = getStatusClass(conflict.status);
+                const segments = conflict.sections.length;
+
+                item.innerHTML = `
+                    <div class="conflict-file-path">${conflict.path}</div>
+                    <div class="conflict-status ${statusClass}">${conflict.status.replace('_', ' ')}</div>
+                    <div class="conflict-segments">${segments} conflict${segments !== 1 ? 's' : ''}</div>
+                `;
+
+                item.onclick = () => selectConflict(index);
+                container.appendChild(item);
+            });
+
+            // Auto-select first conflict
+            if (conflictList.length > 0) {
+                selectConflict(0);
+            }
+        }
+
+        // Get status class for styling
+        function getStatusClass(status) {
+            const statusMap = {
+                'both_modified': 'both-modified',
+                'both_added': 'both-added',
+                'both_deleted': 'deleted',
+                'deleted_modified': 'deleted',
+                'conflicted': 'both-modified'
+            };
+            return statusMap[status] || 'both-modified';
+        }
+
+        // Select a conflict
+        function selectConflict(index) {
+            // Update active state
+            document.querySelectorAll('.conflict-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            document.querySelector(`[data-index="${index}"]`).classList.add('active');
+
+            // Set current conflict
+            currentConflict = conflicts[index];
+
+            // Update UI
+            document.getElementById('editor-header').style.display = 'flex';
+            document.getElementById('file-info').textContent = currentConflict.path;
+
+            // Load file in editor
+            loadFileInEditor(currentConflict);
+
+            // Update resolution summary
+            updateResolutionSummary();
+        }
+
+        // Load file in editor with conflict highlighting
+        function loadFileInEditor(conflict) {
+            const content = conflict.content;
+            const language = getLanguageFromPath(conflict.path);
+
+            editor.setValue(content);
+            editor.updateOptions({
+                language: language,
+                readOnly: resolutions.has(conflict.path) && resolutions.get(conflict.path).manual
+            });
+
+            // Add decorations for conflict markers
+            highlightConflictMarkers(conflict);
+        }
+
+        // Highlight conflict markers in editor
+        function highlightConflictMarkers(conflict) {
+            const decorations = [];
+            const lines = conflict.content.split('\n');
+
+            lines.forEach((line, index) => {
+                if (line.startsWith('<<<<<<<')) {
+                    decorations.push({
+                        range: new monaco.Range(index + 1, 1, index + 1, line.length + 1),
+                        options: {
+                            className: 'conflict-marker-ours',
+                            isWholeLine: true,
+                            afterContentClassName: ' conflict-label-ours'
+                        }
+                    });
+                } else if (line.startsWith('=======')) {
+                    decorations.push({
+                        range: new monaco.Range(index + 1, 1, index + 1, line.length + 1),
+                        options: {
+                            className: 'conflict-marker-separator',
+                            isWholeLine: true
+                        }
+                    });
+                } else if (line.startsWith('>>>>>>>')) {
+                    decorations.push({
+                        range: new monaco.Range(index + 1, 1, index + 1, line.length + 1),
+                        options: {
+                            className: 'conflict-marker-theirs',
+                            isWholeLine: true
+                        }
+                    });
+                }
+            });
+
+            editor.deltaDecorations([], decorations);
+        }
+
+        // Get language from file path
+        function getLanguageFromPath(filePath) {
+            const ext = filePath.split('.').pop().toLowerCase();
+            const languageMap = {
+                'js': 'javascript',
+                'jsx': 'javascript',
+                'ts': 'typescript',
+                'tsx': 'typescript',
+                'py': 'python',
+                'html': 'html',
+                'css': 'css',
+                'scss': 'scss',
+                'sass': 'sass',
+                'json': 'json',
+                'xml': 'xml',
+                'yaml': 'yaml',
+                'yml': 'yaml',
+                'md': 'markdown',
+                'sql': 'sql',
+                'sh': 'shell',
+                'bash': 'shell',
+                'zsh': 'shell',
+                'fish': 'shell',
+                'java': 'java',
+                'c': 'c',
+                'cpp': 'cpp',
+                'cc': 'cpp',
+                'cxx': 'cpp',
+                'h': 'c',
+                'hpp': 'cpp',
+                'cs': 'csharp',
+                'php': 'php',
+                'rb': 'ruby',
+                'go': 'go',
+                'rs': 'rust',
+                'swift': 'swift',
+                'kt': 'kotlin',
+                'dart': 'dart',
+                'vue': 'html',
+                'svelte': 'html'
+            };
+
+            return languageMap[ext] || 'plaintext';
+        }
+
+        // Accept our changes
+        function acceptOurs() {
+            if (!currentConflict) return;
+
+            const resolution = {
+                path: currentConflict.path,
+                sections: currentConflict.sections.map(section => ({
+                    start_line: section.start_line,
+                    choice: 'ours'
+                }))
+            };
+
+            resolutions.set(currentConflict.path, resolution);
+            updateResolutionSummary();
+            showToast(`Accepted our changes for ${currentConflict.path}`, 'success');
+        }
+
+        // Accept their changes
+        function acceptTheirs() {
+            if (!currentConflict) return;
+
+            const resolution = {
+                path: currentConflict.path,
+                sections: currentConflict.sections.map(section => ({
+                    start_line: section.start_line,
+                    choice: 'theirs'
+                }))
+            };
+
+            resolutions.set(currentConflict.path, resolution);
+            updateResolutionSummary();
+            showToast(`Accepted their changes for ${currentConflict.path}`, 'success');
+        }
+
+        // Enable manual editing
+        function enableManualEdit() {
+            if (!currentConflict) return;
+
+            // Remove conflict markers to allow editing
+            const content = editor.getValue();
+            const cleanedContent = removeConflictMarkers(content);
+
+            editor.setValue(cleanedContent);
+            editor.updateOptions({
+                readOnly: false
+            });
+
+            // Mark as manually edited
+            resolutions.set(currentConflict.path, {
+                path: currentConflict.path,
+                sections: [],
+                manual: true
+            });
+
+            updateResolutionSummary();
+            showToast(`Now manually editing ${currentConflict.path}`, 'info');
+        }
+
+        // Remove conflict markers from content
+        function removeConflictMarkers(content) {
+            const lines = content.split('\n');
+            const cleanedLines = [];
+            let skipUntil = null;
+
+            for (const line of lines) {
+                if (line.startsWith('<<<<<<<')) {
+                    // Start of conflict, skip until we find the right section
+                    skipUntil = 'ours';
+                    continue;
+                } else if (line.startsWith('=======')) {
+                    // Switch from ours to theirs
+                    if (skipUntil === 'ours') {
+                        skipUntil = 'theirs';
+                    } else {
+                        skipUntil = null;
+                    }
+                    continue;
+                } else if (line.startsWith('>>>>>>>')) {
+                    // End of conflict
+                    skipUntil = null;
+                    continue;
+                }
+
+                if (skipUntil !== 'ours') {
+                    cleanedLines.push(line);
+                }
+            }
+
+            return cleanedLines.join('\n');
+        }
+
+        // Update resolution summary
+        function updateResolutionSummary() {
+            const summary = document.getElementById('resolution-summary');
+            const list = document.getElementById('resolved-list');
+
+            if (resolutions.size === 0) {
+                summary.style.display = 'none';
+                return;
+            }
+
+            summary.style.display = 'block';
+            list.innerHTML = '';
+
+            resolutions.forEach((resolution, path) => {
+                const item = document.createElement('div');
+                item.className = 'resolved-item';
+
+                let choice = 'Manual';
+                let choiceClass = 'manual';
+
+                if (resolution.sections && resolution.sections.length > 0) {
+                    const firstChoice = resolution.sections[0].choice;
+                    if (firstChoice === 'ours') {
+                        choice = 'Ours';
+                        choiceClass = 'ours';
+                    } else if (firstChoice === 'theirs') {
+                        choice = 'Theirs';
+                        choiceClass = 'theirs';
+                    }
+                }
+
+                item.innerHTML = `
+                    <span>${path}</span>
+                    <span class="choice ${choiceClass}">${choice}</span>
+                `;
+
+                list.appendChild(item);
+            });
+        }
+
+        // Update conflict info
+        function updateConflictInfo() {
+            const info = document.getElementById('conflict-info');
+            const remaining = conflicts.length - resolutions.size;
+
+            if (conflicts.length === 0) {
+                info.textContent = 'No conflicts detected';
+                document.getElementById('continue-btn').disabled = true;
+            } else if (remaining === 0) {
+                info.textContent = `All ${conflicts.length} conflict${conflicts.length !== 1 ? 's' : ''} resolved`;
+                document.getElementById('continue-btn').disabled = false;
+            } else {
+                info.textContent = `${remaining} of ${conflicts.length} conflict${conflicts.length !== 1 ? 's' : ''} remaining`;
+                document.getElementById('continue-btn').disabled = true;
+            }
+        }
+
+        // Continue merge
+        function continueMerge() {
+            if (resolutions.size === 0) {
+                showToast('No resolutions to apply', 'error');
+                return;
+            }
+
+            // Prepare resolution data
+            const resolutionData = Array.from(resolutions.values()).map(resolution => {
+                if (resolution.manual) {
+                    resolution.content = editor.getValue();
+                }
+                return resolution;
+            });
+
+            // Send resolutions with continue_merge action
+            fetch('/git/resolve-conflicts/api/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    resolutions: resolutionData,
+                    action: 'continue_merge'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (data.merge_completed) {
+                        showToast('Merge completed successfully!', 'success');
+                        setTimeout(() => {
+                            window.location.href = '/git/graph/';
+                        }, 2000);
+                    } else {
+                        showToast('Conflicts resolved, but merge needs completion. Please run git commit.', 'info');
+                    }
+                } else {
+                    showToast(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showToast('Failed to resolve conflicts', 'error');
+            });
+        }
+
+        // Abort merge
+        function abortMerge() {
+            if (confirm('Are you sure you want to abort the merge? This will discard all merge attempts.')) {
+                fetch('/git/resolve-conflicts/api/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        resolutions: [],
+                        action: 'abort_merge'
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast(data.message, 'success');
+                        setTimeout(() => {
+                            window.location.href = '/git/graph/';
+                        }, 1500);
+                    } else {
+                        showToast(data.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    showToast('Failed to abort merge', 'error');
+                });
+            }
+        }
+
+        // Refresh conflicts
+        function refreshConflicts() {
+            resolutions.clear();
+            loadConflicts();
+            updateResolutionSummary();
+        }
+
+        // Toast notification
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type}`;
+            toast.classList.add('show');
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // Get CSRF cookie
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Ctrl/Cmd + S to save/resume merge
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                if (!document.getElementById('continue-btn').disabled) {
+                    continueMerge();
+                }
+            }
+            // Escape to cancel/abort
+            if (e.key === 'Escape') {
+                if (confirm('Abort merge?')) {
+                    abortMerge();
+                }
+            }
+            // Ctrl/Cmd + 1 to accept ours
+            if ((e.ctrlKey || e.metaKey) && e.key === '1') {
+                e.preventDefault();
+                acceptOurs();
+            }
+            // Ctrl/Cmd + 2 to accept theirs
+            if ((e.ctrlKey || e.metaKey) && e.key === '2') {
+                e.preventDefault();
+                acceptTheirs();
+            }
+            // Ctrl/Cmd + 3 for manual edit
+            if ((e.ctrlKey || e.metaKey) && e.key === '3') {
+                e.preventDefault();
+                enableManualEdit();
+            }
+        });
+
+        // Update conflict info when resolutions change
+        const originalSet = resolutions.set;
+        resolutions.set = function(key, value) {
+            originalSet.apply(this, arguments);
+            updateConflictInfo();
+        };
+
+        // Auto-save manual edits
+        let saveTimeout;
+        editor.onDidChangeModelContent(() => {
+            if (currentConflict && resolutions.has(currentConflict.path)) {
+                const resolution = resolutions.get(currentConflict.path);
+                if (resolution.manual) {
+                    clearTimeout(saveTimeout);
+                    saveTimeout = setTimeout(() => {
+                        resolution.content = editor.getValue();
+                    }, 1000);
+                }
+            }
+        });
+    </script>
+</body>
+</html>

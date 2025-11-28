@@ -1,0 +1,365 @@
+{% extends 'base.html' %}
+
+{% block title %}实时协作{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h1><i class="fas fa-users"></i> 实时协作</h1>
+            <p class="text-muted">创建和管理协作会话</p>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-plus-circle"></i> 创建新会话</h5>
+                </div>
+                <div class="card-body">
+                    {% if user.is_authenticated %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-user"></i> 当前用户: <strong>{{ user.username }}</strong>
+                    </div>
+                    <form id="createSessionForm" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="sessionFiles" class="form-label">
+                                <i class="fas fa-file-upload"></i> 上传文件(可选)
+                            </label>
+                            <input type="file" class="form-control" id="sessionFiles"
+                                   name="files" multiple
+                                   accept=".txt,.py,.js,.html,.css,.json,.md,.xml,.yml,.yaml,.java,.cpp,.c,.h">
+                            <small class="form-text text-muted">
+                                支持上传多个文件,会话成员可以协作编辑这些文件
+                            </small>
+                        </div>
+                        <div id="fileList" class="mb-3"></div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-rocket"></i> 创建会话
+                        </button>
+                    </form>
+                    {% else %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i> 请先<a href="{% url 'admin:login' %}?next={{ request.path }}">登录</a>以创建会话
+                    </div>
+                    {% endif %}
+                    <div id="createResult" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-door-open"></i> 加入会话</h5>
+                </div>
+                <div class="card-body">
+                    {% if user.is_authenticated %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-user"></i> 当前用户: <strong>{{ user.username }}</strong>
+                    </div>
+                    <form id="joinSessionForm">
+                        <div class="mb-3">
+                            <label for="sessionId" class="form-label">会话ID</label>
+                            <input type="text" class="form-control" id="sessionId" name="sessionId"
+                                   placeholder="输入会话ID" required>
+                        </div>
+                        <button type="submit" class="btn btn-info">
+                            <i class="fas fa-sign-in-alt"></i> 加入会话
+                        </button>
+                    </form>
+                    {% else %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i> 请先<a href="{% url 'admin:login' %}?next={{ request.path }}">登录</a>以加入会话
+                    </div>
+                    {% endif %}
+                    <div id="joinResult" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-chart-bar"></i> 活跃会话列表</h5>
+                    <button class="btn btn-light btn-sm" onclick="loadStats()">
+                        <i class="fas fa-sync"></i> 刷新
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="statsResult"></div>
+                    <div id="sessionsList" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 获取 CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+const csrftoken = getCookie('csrftoken');
+
+// 文件选择预览
+{% if user.is_authenticated %}
+const fileInput = document.getElementById('sessionFiles');
+const fileList = document.getElementById('fileList');
+
+fileInput.addEventListener('change', function() {
+    fileList.innerHTML = '';
+    if (this.files.length > 0) {
+        const listHtml = `
+            <div class="alert alert-secondary">
+                <strong><i class="fas fa-files-o"></i> 已选择 ${this.files.length} 个文件:</strong>
+                <ul class="mb-0 mt-2">
+                    ${Array.from(this.files).map(file => `<li>${file.name} (${(file.size/1024).toFixed(2)} KB)</li>`).join('')}
+                </ul>
+            </div>
+        `;
+        fileList.innerHTML = listHtml;
+    }
+});
+
+// 创建会话
+document.getElementById('createSessionForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const resultDiv = document.getElementById('createResult');
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+
+    // 禁用按钮
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 创建中...';
+
+    try {
+        const formData = new FormData();
+        const files = fileInput.files;
+
+        // 添加所有文件
+        for (let i = 0; i < files.length; i++) {
+            formData.append('files', files[i]);
+        }
+
+        const response = await fetch('/api/collaboration/sessions/create/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-success">
+                    <strong>成功！</strong><br>
+                    会话ID: <code>${data.session_id}</code><br>
+                    <small>${data.message}</small><br>
+                    <small>正在新标签页中打开会话...</small>
+                </div>
+            `;
+            // 在新标签页中打开会话详情页面
+            setTimeout(() => {
+                window.open(`/api/collaboration/session/${data.session_id}/`, '_blank');
+            }, 500);
+        } else {
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <strong>失败：</strong> ${data.message}
+                </div>
+            `;
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-rocket"></i> 创建会话';
+        }
+    } catch (error) {
+        resultDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <strong>错误：</strong> ${error.message}
+            </div>
+        `;
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-rocket"></i> 创建会话';
+    }
+});
+
+// 加入会话
+document.getElementById('joinSessionForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const sessionId = document.getElementById('sessionId').value;
+    const resultDiv = document.getElementById('joinResult');
+
+    try {
+        const response = await fetch(`/api/collaboration/sessions/${sessionId}/join/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            },
+            body: JSON.stringify({ role: 'editor' })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-success">
+                    <strong>成功！</strong><br>
+                    ${data.message}<br>
+                    <small>正在新标签页中打开会话...</small>
+                </div>
+            `;
+            // 在新标签页中打开会话详情页面
+            setTimeout(() => {
+                window.open(`/api/collaboration/session/${sessionId}/`, '_blank');
+            }, 500);
+        } else {
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <strong>失败：</strong> ${data.message}
+                </div>
+            `;
+        }
+    } catch (error) {
+        resultDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <strong>错误：</strong> ${error.message}
+            </div>
+        `;
+    }
+});
+{% endif %}
+
+// 加载统计和会话列表
+async function loadStats() {
+    const resultDiv = document.getElementById('statsResult');
+    const sessionsDiv = document.getElementById('sessionsList');
+
+    try {
+        // 加载统计信息
+        const statsResponse = await fetch('/api/collaboration/stats/');
+        const statsData = await statsResponse.json();
+
+        if (statsData.success) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-info mb-0">
+                    <strong><i class="fas fa-info-circle"></i> 活跃会话总数：</strong> ${statsData.active_sessions}
+                </div>
+            `;
+        }
+
+        // 加载会话列表
+        const sessionsResponse = await fetch('/api/collaboration/sessions/');
+        const sessionsData = await sessionsResponse.json();
+
+        if (sessionsData.success && sessionsData.sessions.length > 0) {
+            let tableHTML = `
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>会话ID</th>
+                                <th>发起人</th>
+                                <th>创建时间</th>
+                                <th>成员数</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            sessionsData.sessions.forEach(session => {
+                const createdAt = new Date(session.created_at).toLocaleString('zh-CN');
+                tableHTML += `
+                    <tr>
+                        <td><code>${session.session_id.substring(0, 8)}...</code></td>
+                        <td>${session.initiator}</td>
+                        <td>${createdAt}</td>
+                        <td><span class="badge bg-primary">${session.member_count}</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick="openSession('${session.session_id}')">
+                                <i class="fas fa-external-link-alt"></i> 打开
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tableHTML += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            sessionsDiv.innerHTML = tableHTML;
+        } else {
+            sessionsDiv.innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i> 暂无活跃会话
+                </div>
+            `;
+        }
+    } catch (error) {
+        resultDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <strong>错误：</strong> ${error.message}
+            </div>
+        `;
+    }
+}
+
+// 打开会话并自动加入
+async function openSession(sessionId) {
+    {% if user.is_authenticated %}
+    try {
+        // 先尝试加入会话(以编辑者身份)
+        const response = await fetch(`/api/collaboration/sessions/${sessionId}/join/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            },
+            body: JSON.stringify({ role: 'editor' })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // 加入成功或已经是成员,在新标签页中打开会话
+            window.open(`/api/collaboration/session/${sessionId}/`, '_blank');
+        } else {
+            alert('无法加入会话: ' + data.message);
+        }
+    } catch (error) {
+        console.error('加入会话失败:', error);
+        // 即使出错也尝试打开会话页面
+        window.open(`/api/collaboration/session/${sessionId}/`, '_blank');
+    }
+    {% else %}
+    alert('请先登录才能打开会话');
+    window.location.href = '{% url "admin:login" %}?next={{ request.path }}';
+    {% endif %}
+}
+
+// 页面加载时自动加载统计
+window.addEventListener('load', loadStats);
+</script>
+{% endblock %}
