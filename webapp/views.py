@@ -14,7 +14,7 @@ User = get_user_model()
 
 
 class DashboardView(TemplateView):  # LoginRequiredMixin,
-    template_name = "webapp/dashboard.html"
+    template_name = "webapp/dashboard_simple.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -45,7 +45,7 @@ class ProjectDetailView(TemplateView):  # LoginRequiredMixin,
 
 
 class ProjectListView(TemplateView):  # LoginRequiredMixin,
-    template_name = "webapp/project_list.html"
+    template_name = "webapp/project_list_unified.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -80,7 +80,7 @@ class RequirementListView(TemplateView):  # LoginRequiredMixin,
 
 
 class TeamManagementView(TemplateView):  # LoginRequiredMixin,
-    template_name = "webapp/team_management.html"
+    template_name = "webapp/team_management_unified.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -176,7 +176,7 @@ def git_integration_redirect(request):
 def realtime_collab_redirect(request):
     """直接重定向到 CollabFrontend 应用"""
 
-    return HttpResponseRedirect("http://localhost:8082/")
+    return HttpResponseRedirect("http://localhost:3000/")
 
 
 class CustomLoginView(auth_views.LoginView):

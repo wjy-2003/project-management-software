@@ -34,7 +34,7 @@ urlpatterns = [
     path("teams/", include("TeamManagement.urls")),
     # Webapp specific routes
     path("dashboard/", views.DashboardView.as_view(), name="dashboard_alt"),
-    path("project-list/", views.ProjectListView.as_view(), name="project_list"),
+    path("projects/", views.ProjectListView.as_view(), name="project_list"),
     path(
         "project-detail/<int:pk>/",
         views.ProjectDetailView.as_view(),
@@ -51,6 +51,8 @@ urlpatterns = [
     ),
     path("visualization/", views.VisualizationView.as_view(), name="visualization"),
     path("requirements/", views.RequirementListView.as_view(), name="requirement_list"),
+    # Additional shortcuts for simpler URL names
+    path("project-list/", views.ProjectListView.as_view(), name="project_list_alt"),
     # Redirects
     path(
         "project-management/",
