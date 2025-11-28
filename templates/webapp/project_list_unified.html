@@ -97,12 +97,12 @@
                             {% for project in projects %}
                             <tr data-status="{{ project.status }}">
                                 <td>
-                                    <a href="{% url 'project-detail' project.pk %}" class="text-primary text-decoration-none">
+                                    <a href="{% url 'projectmanagement:project_info' project.project_number %}" class="text-primary text-decoration-none">
                                         {{ project.project_number }}
                                     </a>
                                 </td>
                                 <td>
-                                    <a href="{% url 'project-detail' project.pk %}" class="text-primary text-decoration-none">
+                                    <a href="{% url 'projectmanagement:project_info' project.project_number %}" class="text-primary text-decoration-none">
                                         {{ project.title }}
                                     </a>
                                 </td>
@@ -129,7 +129,7 @@
                                 <td>{{ project.planned_end_date|default:"-" }}</td>
                                 <td>
                                     <div style="display: flex; gap: 4px;">
-                                        <a href="{% url 'project-detail' project.pk %}" class="btn btn-sm" title="查看详情">
+                                        <a href="{% url 'projectmanagement:project_info' project.project_number %}" class="btn btn-sm" title="查看详情">
                                             <i class="fas fa-eye"></i>
                                         </a>
                                         <a href="{% url 'project-management:project_edit' project.project_number %}" class="btn btn-sm" title="编辑">

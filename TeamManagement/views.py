@@ -217,7 +217,7 @@ def team_create(request):
                 **{TEAM_FIELD_NAME: team, USER_FIELD_NAME: request.user},
                 defaults=membership_defaults,
             )
-        messages.success(request, _("Team created successfully"))
+        messages.success(request, ("Team created successfully"))
         return redirect(_safe_reverse("team-detail", pk=team.pk))
     return render(request, "TeamManagement/team_form.html", {"form": form})
 

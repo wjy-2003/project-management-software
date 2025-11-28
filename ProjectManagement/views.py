@@ -372,21 +372,32 @@ def project_burndown_chart(request, project_number):
             remaining = total_hours - (total_hours * i / len(dates))
             ideal_burndown.append(round(max(0, remaining), 1))
 
-        # 计算实际燃尽线（基于任务完成情况）
+        # 计算实际燃尽线（基于任务实际消耗工时）
         actual_burndown = []
         for current_date_str in dates:
             current_date = datetime.strptime(current_date_str, '%Y-%m-%d').date()
 
-            # 计算到当前日期为止完成的工时
-            completed_hours = 0
-            completed_tasks = tasks.filter(
-                status='completed',
-                actual_end_date__lte=current_date
-            )
-            for task in completed_tasks:
-                completed_hours += float(task.estimated_hours)
+            # 计算到当前日期为止的实际消耗工时
+            consumed_hours_total = 0
 
-            remaining = total_hours - completed_hours
+            for task in tasks:
+                # 已完成的任务：如果完成日期在当前日期或之前，计入全部消耗工时
+                if (task.status == 'completed' and
+                    task.actual_end_date and
+                    task.actual_end_date <= current_date):
+                    consumed_hours_total += float(task.consumed_hours or 0)
+
+                # 进行中的任务：如果已经开始，按已消耗工时在已进行天数内平均分配
+                elif (task.status == 'in_progress' and
+                      task.actual_start_date and
+                      task.actual_start_date <= current_date):
+                    # 计算任务已进行的天数（包括当前日期）
+                    days_in_progress = (min(current_date, end_date) - task.actual_start_date).days + 1
+                    if days_in_progress > 0:
+                        # 计算到当前日期为止应分配的工时
+                        prorated_hours = float(task.consumed_hours or 0) * days_in_progress / ((min(end_date, timezone.now().date()) - task.actual_start_date).days + 1)
+                        consumed_hours_total += prorated_hours
+            remaining = total_hours - consumed_hours_total
             actual_burndown.append(round(max(0, remaining), 1))
 
         context = {
