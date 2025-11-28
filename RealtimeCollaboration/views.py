@@ -36,7 +36,6 @@ def create_session(request):
             if hasattr(request, 'POST') and request.POST.get('user_id'):
                 initiator = request.POST.get('user_id')
             elif hasattr(request, 'body') and request.content_type == 'application/json':
-                import json
                 try:
                     body_data = json.loads(request.body)
                     initiator = body_data.get('initiator', 'user_' + str(hash(request.META.get('REMOTE_ADDR', '')) % 1000000))
