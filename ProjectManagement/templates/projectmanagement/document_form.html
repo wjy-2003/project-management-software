@@ -1,84 +1,209 @@
-{% extends 'projectmanagement/base.html' %}
+{% extends 'webapp/unified_base.html' %}
 {% load static %}
 
-{% block title %}上传文档{% endblock %}
+{% block title %}上传文档 - 项目管理系统{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <!-- 面包屑导航 -->
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{% url 'projectmanagement:project_list' %}">项目列表</a></li>
-            <li class="breadcrumb-item"><a href="{% url 'projectmanagement:project_info' project.project_number %}">{{ project.title }}</a></li>
-            <li class="breadcrumb-item active">上传文档</li>
-        </ol>
-    </nav>
+<div class="content-header">
+    <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+        <h1>
+            <i class="fas fa-upload"></i>
+            上传文档
+        </h1>
+        <div style="display: flex; align-items: center; gap: 8px; color: var(--text-secondary); font-size: 14px;">
+            <a href="{% url 'projectmanagement:project_list' %}" style="color: inherit; text-decoration: none;">项目列表</a>
+            <span>/</span>
+            <a href="{% url 'projectmanagement:project_info' project.project_number %}" style="color: inherit; text-decoration: none;">{{ project.title }}</a>
+            <span>/</span>
+            <span>上传文档</span>
+        </div>
+    </div>
+    <div style="color: var(--text-secondary); font-size: 14px;">
+        项目：<strong>{{ project.title }}</strong> (<code>{{ project.project_number }}</code>)
+    </div>
+</div>
 
-    <div class="row">
-        <div class="col-md-8 offset-md-2">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">
-                        <i class="fas fa-upload"></i> 上传文档
-                    </h5>
-                    <small class="text-white-50">项目：{{ project.title }} (<code>{{ project.project_number }}</code>)</small>
-                </div>
-                <div class="card-body">
-                    {% if messages %}
-                    <div class="alert-container mb-3">
-                        {% for message in messages %}
-                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                            {{ message }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+<div class="content-body">
+    {% if messages %}
+    <div style="margin-bottom: 24px;">
+        {% for message in messages %}
+        <div style="padding: 12px 16px; border-radius: 6px; margin-bottom: 8px; background: {% if message.tags == 'error' %}#fff1f0; border: 1px solid #ffccc7; color: #f5222d{% elif message.tags == 'warning' %}#fff7e6; border: 1px solid #ffd591; color: #faad14{% elif message.tags == 'success' %}#f6ffed; border: 1px solid #b7eb8f; color: #52c41a{% else %}#e6f7ff; border: 1px solid #91d5ff; color: #1890ff{% endif %}; display: flex; align-items: center; justify-content: space-between;">
+            <span>{{ message }}</span>
+            <button onclick="this.parentElement.style.display='none'" style="background: none; border: none; font-size: 16px; cursor: pointer;">×</button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="data-card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-file-upload"></i>
+                文档上传表单
+            </h3>
+            <div style="color: var(--text-secondary); font-size: 14px;">
+                为项目 {{ project.title }} 上传相关文档
+            </div>
+        </div>
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+
+                {% for field in form %}
+                <div style="margin-bottom: 24px;">
+                    <label for="{{ field.id_for_label }}" style="display: block; margin-bottom: 8px; font-weight: 500; color: var(--text-color);">
+                        {{ field.label }}
+                        {% if field.field.required %}<span style="color: var(--error-color);">*</span>{% endif %}
+                    </label>
+                    <div style="position: relative;">
+                        {{ field }}
+                        {% if field.errors %}
+                        <div style="margin-top: 8px; padding: 8px 12px; background: #fff1f0; border: 1px solid #ffccc7; border-radius: 6px; color: var(--error-color); font-size: 14px;">
+                            {{ field.errors }}
                         </div>
-                        {% endfor %}
+                        {% endif %}
+                    </div>
+                    {% if field.help_text %}
+                    <div style="margin-top: 6px; font-size: 12px; color: var(--text-secondary);">
+                        {{ field.help_text }}
                     </div>
                     {% endif %}
+                </div>
+                {% endfor %}
 
-                    <form method="post" enctype="multipart/form-data">
-                        {% csrf_token %}
+                <hr style="margin: 32px 0; border: none; border-top: 1px solid #f0f0f0;">
 
-                        {% for field in form %}
-                        <div class="mb-3">
-                            <label for="{{ field.id_for_label }}" class="form-label">
-                                {{ field.label }}
-                                {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
-                            </label>
-                            {{ field }}
-                            {% if field.errors %}
-                            <div class="invalid-feedback d-block">
-                                {{ field.errors }}
-                            </div>
-                            {% endif %}
-                            {% if field.help_text %}
-                            <small class="form-text text-muted">{{ field.help_text }}</small>
-                            {% endif %}
-                        </div>
-                        {% endfor %}
+                <div style="display: flex; justify-content: flex-end; gap: 12px;">
+                    <a href="{% url 'projectmanagement:project_info' project.project_number %}"
+                       class="btn">
+                        <i class="fas fa-times"></i>
+                        取消
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-upload"></i>
+                        上传文档
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-                        <hr>
-                        <div class="d-flex justify-content-end gap-2">
-                            <a href="{% url 'projectmanagement:project_info' project.project_number %}"
-                               class="btn btn-secondary">
-                                <i class="fas fa-times"></i> 取消
-                            </a>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-upload"></i> 上传
-                            </button>
-                        </div>
-                    </form>
+    <!-- 文档上传说明 -->
+    <div class="data-card" style="margin-top: 24px;">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-info-circle"></i>
+                上传说明
+            </h3>
+        </div>
+        <div class="card-body">
+            <div style="display: grid; gap: 16px;">
+                <div style="display: flex; align-items: flex-start; gap: 12px;">
+                    <div style="width: 24px; height: 24px; border-radius: 50%; background: var(--primary-color); color: white; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0;">1</div>
+                    <div>
+                        <div style="font-weight: 500; margin-bottom: 4px;">选择文档类型</div>
+                        <div style="font-size: 14px; color: var(--text-secondary);">为文档选择合适的类型，便于分类管理</div>
+                    </div>
+                </div>
+
+                <div style="display: flex; align-items: flex-start; gap: 12px;">
+                    <div style="width: 24px; height: 24px; border-radius: 50%; background: var(--primary-color); color: white; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0;">2</div>
+                    <div>
+                        <div style="font-weight: 500; margin-bottom: 4px;">上传文件</div>
+                        <div style="font-size: 14px; color: var(--text-secondary);">支持常见的文档格式，文件大小建议不超过 10MB</div>
+                    </div>
+                </div>
+
+                <div style="display: flex; align-items: flex-start; gap: 12px;">
+                    <div style="width: 24px; height: 24px; border-radius: 50%; background: var(--primary-color); color: white; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0;">3</div>
+                    <div>
+                        <div style="font-weight: 500; margin-bottom: 4px;">添加描述</div>
+                        <div style="font-size: 14px; color: var(--text-secondary);">为文档添加清晰的描述，方便团队成员理解</div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
 
+{% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // 为所有表单控件添加 Bootstrap 类
-    document.querySelectorAll('input[type=text], input[type=file], textarea').forEach(function(element) {
-        element.classList.add('form-control');
+    // 为所有表单控件添加统一样式
+    document.querySelectorAll('input[type=text], input[type=file], textarea, select').forEach(function(element) {
+        element.style.padding = '8px 12px';
+        element.style.border = '1px solid var(--border-color)';
+        element.style.borderRadius = '6px';
+        element.style.fontSize = '14px';
+        element.style.width = '100%';
+        element.style.transition = 'all 0.3s ease';
+        element.style.backgroundColor = 'white';
+
+        // 添加焦点效果
+        element.addEventListener('focus', function() {
+            this.style.borderColor = 'var(--primary-color)';
+            this.style.boxShadow = '0 0 0 2px rgba(24, 144, 255, 0.2)';
+        });
+
+        element.addEventListener('blur', function() {
+            this.style.borderColor = 'var(--border-color)';
+            this.style.boxShadow = 'none';
+        });
     });
+
+    // 为文件上传控件添加拖拽功能增强
+    const fileInput = document.querySelector('input[type=file]');
+    if (fileInput) {
+        fileInput.parentElement.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.style.backgroundColor = '#f6ffed';
+            this.style.borderColor = 'var(--success-color)';
+        });
+
+        fileInput.parentElement.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            this.style.backgroundColor = 'white';
+            this.style.borderColor = 'var(--border-color)';
+        });
+
+        fileInput.parentElement.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.style.backgroundColor = 'white';
+            this.style.borderColor = 'var(--border-color)';
+        });
+    }
+
+    // 表单提交前的验证
+    const form = document.querySelector('form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const requiredFields = form.querySelectorAll('[required]');
+            let isValid = true;
+
+            requiredFields.forEach(function(field) {
+                if (!field.value.trim()) {
+                    field.style.borderColor = 'var(--error-color)';
+                    isValid = false;
+                } else {
+                    field.style.borderColor = 'var(--border-color)';
+                }
+            });
+
+            if (!isValid) {
+                e.preventDefault();
+                // 显示错误提示
+                const errorDiv = document.createElement('div');
+                errorDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; padding: 16px 20px; background: #fff1f0; border: 1px solid #ffccc7; border-radius: 6px; color: var(--error-color); z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.15);';
+                errorDiv.innerHTML = '<strong>请填写所有必填字段</strong>';
+                document.body.appendChild(errorDiv);
+
+                setTimeout(() => {
+                    errorDiv.remove();
+                }, 3000);
+            }
+        });
+    }
 });
 </script>
 {% endblock %}

@@ -1,62 +1,179 @@
-{% extends 'base.html' %}
+{% extends 'webapp/unified_base.html' %}
 
-{% block title %}{{ title }}{% endblock %}
+{% block title %}{{ title }} - 项目管理系统{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <!-- 面包屑导航 -->
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{% url 'projectmanagement:project_list' %}">项目列表</a></li>
-            <li class="breadcrumb-item active">{{ title }}</li>
-        </ol>
-    </nav>
+<div class="content-header">
+    <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+        <h1>
+            <i class="fas fa-plus-circle"></i>
+            {{ title }}
+        </h1>
+        <div style="display: flex; align-items: center; gap: 8px; color: var(--text-secondary); font-size: 14px;">
+            <a href="{% url 'projectmanagement:project_list' %}" style="color: inherit; text-decoration: none;">项目列表</a>
+            <span>/</span>
+            <span>{{ title }}</span>
+        </div>
+    </div>
+</div>
 
-    <div class="row">
-        <div class="col-md-10 offset-md-1">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">
-                        <i class="fas fa-plus-circle"></i> {{ title }}
-                    </h5>
+<div class="content-body">
+    {% if messages %}
+    <div style="margin-bottom: 24px;">
+        {% for message in messages %}
+        <div style="padding: 12px 16px; border-radius: 6px; margin-bottom: 8px; background: {% if message.tags == 'error' %}#fff1f0; border: 1px solid #ffccc7; color: #f5222d{% elif message.tags == 'warning' %}#fff7e6; border: 1px solid #ffd591; color: #faad14{% elif message.tags == 'success' %}#f6ffed; border: 1px solid #b7eb8f; color: #52c41a{% else %}#e6f7ff; border: 1px solid #91d5ff; color: #1890ff{% endif %}; display: flex; align-items: center; justify-content: space-between;">
+            <span>{{ message }}</span>
+            <button onclick="this.parentElement.style.display='none'" style="background: none; border: none; font-size: 16px; cursor: pointer;">×</button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="data-card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-plus-circle"></i>
+                项目信息
+            </h3>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+
+                {% for field in form %}
+                <div style="margin-bottom: 24px;">
+                    <label for="{{ field.id_for_label }}" style="display: block; margin-bottom: 8px; font-weight: 500; color: var(--text-color);">
+                        {{ field.label }}
+                        {% if field.field.required %}<span style="color: var(--error-color);">*</span>{% endif %}
+                    </label>
+                    <div style="position: relative;">
+                        {{ field }}
+                        {% if field.errors %}
+                        <div style="margin-top: 8px; padding: 8px 12px; background: #fff1f0; border: 1px solid #ffccc7; border-radius: 6px; color: var(--error-color); font-size: 14px;">
+                            {{ field.errors }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% if field.help_text %}
+                    <div style="margin-top: 6px; font-size: 12px; color: var(--text-secondary);">
+                        {{ field.help_text }}
+                    </div>
+                    {% endif %}
                 </div>
-                <div class="card-body">
-                    <form method="post">
-                        {% csrf_token %}
+                {% endfor %}
 
-                        {% for field in form %}
-                        <div class="mb-3">
-                            <label for="{{ field.id_for_label }}" class="form-label">
-                                {{ field.label }}
-                                {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
-                            </label>
-                            {{ field }}
-                            {% if field.errors %}
-                            <div class="invalid-feedback d-block">
-                                {{ field.errors }}
-                            </div>
-                            {% endif %}
-                            {% if field.help_text %}
-                            <small class="form-text text-muted">{{ field.help_text }}</small>
-                            {% endif %}
-                        </div>
-                        {% endfor %}
+                <hr style="margin: 32px 0; border: none; border-top: 1px solid #f0f0f0;">
 
-                        <hr>
-                        <div class="d-flex justify-content-end gap-2">
-                            <a href="{% url 'projectmanagement:project_list' %}" class="btn btn-secondary">
-                                <i class="fas fa-times"></i> 取消
-                            </a>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save"></i> 保存
-                            </button>
-                        </div>
-                    </form>
+                <div style="display: flex; justify-content: flex-end; gap: 12px;">
+                    <a href="{% url 'projectmanagement:project_list' %}" class="btn">
+                        <i class="fas fa-times"></i>
+                        取消
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i>
+                        {{ submit_text|default:"创建项目" }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 项目创建指南 -->
+    <div class="data-card" style="margin-top: 24px;">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-info-circle"></i>
+                创建指南
+            </h3>
+        </div>
+        <div class="card-body">
+            <div style="display: grid; gap: 16px;">
+                <div style="display: flex; align-items: flex-start; gap: 12px;">
+                    <div style="width: 24px; height: 24px; border-radius: 50%; background: var(--primary-color); color: white; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0;">1</div>
+                    <div>
+                        <div style="font-weight: 500; margin-bottom: 4px;">填写基本信息</div>
+                        <div style="font-size: 14px; color: var(--text-secondary);">包括项目名称、描述、时间安排等核心信息</div>
+                    </div>
+                </div>
+
+                <div style="display: flex; align-items: flex-start; gap: 12px;">
+                    <div style="width: 24px; height: 24px; border-radius: 50%; background: var(--primary-color); color: white; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0;">2</div>
+                    <div>
+                        <div style="font-weight: 500; margin-bottom: 4px;">设置时间计划</div>
+                        <div style="font-size: 14px; color: var(--text-secondary);">合理安排项目开始和结束时间，制定详细的工作计划</div>
+                    </div>
+                </div>
+
+                <div style="display: flex; align-items: flex-start; gap: 12px;">
+                    <div style="width: 24px; height: 24px; border-radius: 50%; background: var(--primary-color); color: white; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0;">3</div>
+                    <div>
+                        <div style="font-weight: 500; margin-bottom: 4px;">分配资源</div>
+                        <div style="font-size: 14px; color: var(--text-secondary);">评估所需的人力、时间和预算资源</div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 为所有表单控件添加统一样式
+    document.querySelectorAll('input[type=text], input[type=date], textarea, select').forEach(function(element) {
+        element.style.padding = '8px 12px';
+        element.style.border = '1px solid var(--border-color)';
+        element.style.borderRadius = '6px';
+        element.style.fontSize = '14px';
+        element.style.width = '100%';
+        element.style.transition = 'all 0.3s ease';
+        element.style.backgroundColor = 'white';
+
+        // 添加焦点效果
+        element.addEventListener('focus', function() {
+            this.style.borderColor = 'var(--primary-color)';
+            this.style.boxShadow = '0 0 0 2px rgba(24, 144, 255, 0.2)';
+        });
+
+        element.addEventListener('blur', function() {
+            this.style.borderColor = 'var(--border-color)';
+            this.style.boxShadow = 'none';
+        });
+    });
+
+    // 表单提交前的验证
+    const form = document.querySelector('form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const requiredFields = form.querySelectorAll('[required]');
+            let isValid = true;
+
+            requiredFields.forEach(function(field) {
+                if (!field.value.trim()) {
+                    field.style.borderColor = 'var(--error-color)';
+                    isValid = false;
+                } else {
+                    field.style.borderColor = 'var(--border-color)';
+                }
+            });
+
+            if (!isValid) {
+                e.preventDefault();
+                // 显示错误提示
+                const errorDiv = document.createElement('div');
+                errorDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; padding: 16px 20px; background: #fff1f0; border: 1px solid #ffccc7; border-radius: 6px; color: var(--error-color); z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.15);';
+                errorDiv.innerHTML = '<strong>请填写所有必填字段</strong>';
+                document.body.appendChild(errorDiv);
+
+                setTimeout(() => {
+                    errorDiv.remove();
+                }, 3000);
+            }
+        });
+    }
+});
+</script>
 {% endblock %}
 
 {% block extra_css %}

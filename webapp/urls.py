@@ -34,32 +34,16 @@ urlpatterns = [
     path("teams/", include("TeamManagement.urls")),
     # Webapp specific routes
     path("dashboard/", views.DashboardView.as_view(), name="dashboard_alt"),
-    path("projects/", views.ProjectListView.as_view(), name="project_list"),
     path(
         "project-detail/<int:pk>/",
         views.ProjectDetailView.as_view(),
         name="project_detail",
     ),
     path(
-        "team-management/", views.TeamManagementView.as_view(), name="team_management"
-    ),
-    path(
-        "git-integration/", views.GitIntegrationView.as_view(), name="git_integration"
-    ),
-    path(
         "realtime-collab/", views.RealtimeCollabView.as_view(), name="realtime_collab"
     ),
     path("visualization/", views.VisualizationView.as_view(), name="visualization"),
     path("requirements/", views.RequirementListView.as_view(), name="requirement_list"),
-    # Additional shortcuts for simpler URL names
-    path("project-list/", views.ProjectListView.as_view(), name="project_list_alt"),
-    # Redirects
-    path(
-        "project-management/",
-        RedirectView.as_view(url="/project-list/", permanent=False),
-    ),
-    path("project/", RedirectView.as_view(url="/project-list/", permanent=False)),
-    path("team/", RedirectView.as_view(url="/team-management/", permanent=False)),
 ]
 
 if settings.DEBUG:

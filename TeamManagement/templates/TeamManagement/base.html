@@ -1,11 +1,11 @@
 {% extends 'webapp/unified_base.html' %}
 
-{% block title %}项目管理系统{% endblock %}
+{% block title %}团队与用户管理{% endblock %}
 
 {% block extra_css %}
 <style>
-    /* ProjectManagement specific styles that complement unified_base */
-    .project-header {
+    /* TeamManagement specific styles that complement unified_base */
+    .team-header {
         background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
         color: white;
         padding: 2rem;
@@ -14,14 +14,14 @@
         text-align: center;
     }
 
-    .project-stats {
+    .team-stats {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
         gap: 1rem;
         margin: 2rem 0;
     }
 
-    .project-stat-card {
+    .team-stat-card {
         background: white;
         border-radius: 8px;
         padding: 1.5rem;
@@ -29,8 +29,26 @@
         transition: transform 0.2s;
     }
 
-    .project-stat-card:hover {
+    .team-stat-card:hover {
         transform: translateY(-2px);
+    }
+
+    .member-list {
+        background: #f8f9fa;
+        border-radius: 4px;
+        max-height: 800px;
+        overflow-y: auto;
+    }
+
+    .user-card {
+        background: white;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .user-card:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
 
     .breadcrumb {
@@ -39,19 +57,13 @@
         border-radius: 4px;
         margin-bottom: 2rem;
     }
-
-    .progress-container {
-        background: #e9ecef;
-        border-radius: 4px;
-        overflow: hidden;
-    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="content-body">
-    {% block project_content %}
-    <!-- ProjectManagement content will go here -->
+    {% block team_content %}
+    <!-- TeamManagement content will go here -->
     {% endblock %}
 </div>
 {% endblock %}
