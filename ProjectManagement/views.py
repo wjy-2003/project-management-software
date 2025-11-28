@@ -387,12 +387,16 @@ def project_burndown_chart(request, project_number):
                     task.actual_end_date <= current_date):
                     consumed_hours_total += float(task.consumed_hours or 0)
 
-                # 进行中的任务：如果已经开始，计入已消耗的工时
+                # 进行中的任务：如果已经开始，按已消耗工时在已进行天数内平均分配
                 elif (task.status == 'in_progress' and
                       task.actual_start_date and
                       task.actual_start_date <= current_date):
-                    consumed_hours_total += float(task.consumed_hours or 0)
-
+                    # 计算任务已进行的天数（包括当前日期）
+                    days_in_progress = (min(current_date, end_date) - task.actual_start_date).days + 1
+                    if days_in_progress > 0:
+                        # 计算到当前日期为止应分配的工时
+                        prorated_hours = float(task.consumed_hours or 0) * days_in_progress / ((min(end_date, timezone.now().date()) - task.actual_start_date).days + 1)
+                        consumed_hours_total += prorated_hours
             remaining = total_hours - consumed_hours_total
             actual_burndown.append(round(max(0, remaining), 1))
 
