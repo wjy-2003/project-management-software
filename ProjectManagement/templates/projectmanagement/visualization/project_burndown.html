@@ -170,15 +170,6 @@
         <a href="{% url 'projectmanagement:project_dashboard' project.project_number %}" class="nav-link">
             📊 仪表板
         </a>
-        <a href="{% url 'projectmanagement:project_progress_chart' project.project_number %}" class="nav-link">
-            📈 项目进度
-        </a>
-        <a href="{% url 'projectmanagement:team_workload_chart' project.project_number %}" class="nav-link">
-            👥 团队负载
-        </a>
-        <a href="{% url 'projectmanagement:task_timeline_chart' project.project_number %}" class="nav-link">
-            📅 时间线
-        </a>
         <a href="{% url 'projectmanagement:project_info' project.project_number %}" class="nav-link">
             🔙 返回项目
         </a>

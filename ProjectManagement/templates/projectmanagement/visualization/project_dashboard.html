@@ -113,17 +113,8 @@
 
     <!-- 快速导航 -->
     <div class="quick-links">
-        <a href="{% url 'projectmanagement:project_progress_chart' project.project_number %}" class="quick-link-btn">
-            📊 项目进度
-        </a>
         <a href="{% url 'projectmanagement:project_burndown_chart' project.project_number %}" class="quick-link-btn">
             📉 燃尽图
-        </a>
-        <a href="{% url 'projectmanagement:team_workload_chart' project.project_number %}" class="quick-link-btn">
-            👥 团队负载
-        </a>
-        <a href="{% url 'projectmanagement:task_timeline_chart' project.project_number %}" class="quick-link-btn">
-            📅 任务时间线
         </a>
         <a href="{% url 'projectmanagement:project_info' project.project_number %}" class="quick-link-btn">
             🔙 返回项目详情
