@@ -30,18 +30,44 @@ def create_session(request):
     }
     """
     try:
-        # Check if user is authenticated - for development, allow requests with user_id
+        # Check if user is authenticated
         if not request.user.is_authenticated:
-            # Development fallback: use provided user_id from request
-            if hasattr(request, 'POST') and request.POST.get('user_id'):
-                initiator = request.POST.get('user_id')
-            elif hasattr(request, 'body') and request.content_type == 'application/json':
-                try:
-                    body_data = json.loads(request.body)
-                    initiator = body_data.get('initiator', 'user_' + str(hash(request.META.get('REMOTE_ADDR', '')) % 1000000))
-                except json.JSONDecodeError:
-                    initiator = 'user_' + str(hash(request.META.get('REMOTE_ADDR', '')) % 1000000)
+            # Development fallback: ONLY in DEBUG mode with environment check
+            from django.conf import settings
+            import logging
+
+            logger = logging.getLogger(__name__)
+
+            if getattr(settings, 'DEBUG', False) and getattr(settings, 'ALLOW_DEV_AUTH_FALLBACK', False):
+                logger.warning("Development authentication fallback being used - SECURITY RISK")
+
+                if hasattr(request, 'POST') and request.POST.get('user_id'):
+                    initiator = request.POST.get('user_id')
+                    logger.warning(f"Development fallback using POST user_id: {initiator}")
+                elif hasattr(request, 'body') and request.content_type == 'application/json':
+                    try:
+                        body_data = json.loads(request.body)
+                        initiator = body_data.get('initiator')
+                        if not initiator:
+                            # Generate a more secure dev ID with timestamp
+                            import time
+                            import secrets
+                            random_suffix = secrets.token_hex(4)
+                            initiator = f'dev_user_{int(time.time())}_{random_suffix}'
+                        logger.warning(f"Development fallback using JSON initiator: {initiator}")
+                    except json.JSONDecodeError:
+                        import time
+                        import secrets
+                        random_suffix = secrets.token_hex(4)
+                        initiator = f'dev_user_{int(time.time())}_{random_suffix}'
+                        logger.warning(f"Development fallback generated initiator: {initiator}")
+                else:
+                    return JsonResponse({
+                        "success": False,
+                        "message": "Authentication required. In development mode, provide user_id in POST data or initiator in JSON body."
+                    }, status=401)
             else:
+                logger.warning(f"Unauthenticated session creation attempt from IP: {request.META.get('REMOTE_ADDR', 'unknown')}")
                 return JsonResponse({"success": False, "message": "请先登录"}, status=401)
         else:
             # Use the current logged-in user's ID
