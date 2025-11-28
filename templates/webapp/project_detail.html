@@ -1,0 +1,384 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.title }} - 项目详情{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3">
+                        <i class="fas fa-project-diagram"></i> {{ project.title }}
+                    </h1>
+                    <p class="text-muted mb-0">项目编号: {{ project.project_number }}</p>
+                </div>
+                <div class="btn-group">
+                    <a href="#" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> 返回列表
+                    </a>
+                    <a href="#" class="btn btn-primary">
+                        <i class="fas fa-edit"></i> 编辑项目
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 项目概览卡片 -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <i class="fas fa-info-circle"></i> 项目信息
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tr>
+                            <td class="text-muted">状态:</td>
+                            <td><span class="badge bg-{{ project.status_class }}">{{ project.status_label }}</span></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">创建时间:</td>
+                            <td>{{ project.created_at|date:"Y-m-d H:i" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">最后更新:</td>
+                            <td>{{ project.updated_at|date:"Y-m-d H:i" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">团队规模:</td>
+                            <td>{{ project.team_members.count }} 人</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card shadow">
+                <div class="card-header bg-success text-white">
+                    <i class="fas fa-calendar"></i> 时间规划
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tr>
+                            <td class="text-muted">计划开始:</td>
+                            <td>{{ project.planned_start_date|date:"Y-m-d"|default:"-" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">计划完成:</td>
+                            <td>{{ project.planned_end_date|date:"Y-m-d"|default:"-" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">实际开始:</td>
+                            <td>{{ project.actual_start_date|date:"Y-m-d"|default:"-" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">实际完成:</td>
+                            <td>{{ project.actual_end_date|date:"Y-m-d"|default:"-" }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card shadow">
+                <div class="card-header bg-info text-white">
+                    <i class="fas fa-clock"></i> 工时统计
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tr>
+                            <td class="text-muted">预计工时:</td>
+                            <td>{{ project.estimated_hours|default:0 }} h</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">消耗工时:</td>
+                            <td>{{ project.consumed_hours|default:0 }} h</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">剩余工时:</td>
+                            <td class="{% if project.remaining_hours < 0 %}text-danger{% endif %}">
+                                {{ project.remaining_hours|default:0 }} h
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">可用工日:</td>
+                            <td>{{ project.available_workdays }} 天</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card shadow">
+                <div class="card-header bg-warning text-white">
+                    <i class="fas fa-chart-line"></i> 进度统计
+                </div>
+                <div class="card-body">
+                    <h4 class="text-center mb-3">{{ project.get_project_progress|floatformat:1 }}%</h4>
+                    <div class="progress mb-3" style="height: 20px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated"
+                             role="progressbar"
+                             style="width: {{ project.get_project_progress|floatformat:0 }}%"
+                             aria-valuenow="{{ project.get_project_progress|floatformat:0 }}"
+                             aria-valuemin="0" aria-valuemax="100">
+                        </div>
+                    </div>
+                    <div class="text-center small text-muted">
+                        {% if project.get_project_progress == 100 %}
+                            项目已完成
+                        {% elif project.get_project_progress > 80 %}
+                            即将完成
+                        {% elif project.get_project_progress > 50 %}
+                            进行中
+                        {% else %}
+                            刚开始
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 选项卡 -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header">
+                    <ul class="nav nav-tabs card-header-tabs" id="projectTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="tasks-tab" data-bs-toggle="tab" data-bs-target="#tasks" type="button" role="tab">
+                                <i class="fas fa-tasks"></i> 任务列表
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="team-tab" data-bs-toggle="tab" data-bs-target="#team" type="button" role="tab">
+                                <i class="fas fa-users"></i> 团队成员
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="files-tab" data-bs-toggle="tab" data-bs-target="#files" type="button" role="tab">
+                                <i class="fas fa-folder-open"></i> 项目文档
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="timeline-tab" data-bs-toggle="tab" data-bs-target="#timeline" type="button" role="tab">
+                                <i class="fas fa-history"></i> 时间线
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content" id="projectTabsContent">
+                        <!-- 任务列表 -->
+                        <div class="tab-pane fade show active" id="tasks" role="tabpanel">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="mb-0">项目任务</h5>
+                                <button class="btn btn-primary btn-sm" onclick="addTask()">
+                                    <i class="fas fa-plus"></i> 添加任务
+                                </button>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>任务名称</th>
+                                            <th>负责人</th>
+                                            <th>状态</th>
+                                            <th>进度</th>
+                                            <th>截止日期</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for task in project.tasks.all %}
+                                        <tr>
+                                            <td>{{ task.title }}</td>
+                                            <td>{{ task.assigned_to.user.username|default:"未分配" }}</td>
+                                            <td>
+                                                <span class="badge bg-{% if task.status == 'completed' %}success{% elif task.status == 'in_progress' %}primary{% elif task.status == 'suspended' %}warning{% else %}secondary{% endif %}">
+                                                    {% if task.status == 'not_started' %}未开始
+                                                    {% elif task.status == 'in_progress' %}进行中
+                                                    {% elif task.status == 'completed' %}已完成
+                                                    {% elif task.status == 'suspended' %}已暂停{% endif %}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div class="progress" style="height: 20px; width: 100px;">
+                                                    <div class="progress-bar" role="progressbar"
+                                                         style="width: {{ task.get_task_progress|floatformat:0 }}%">
+                                                        {{ task.get_task_progress|floatformat:0 }}%
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>{{ task.due_date|date:"Y-m-d"|default:"-" }}</td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <button class="btn btn-outline-primary" title="查看详情">
+                                                        <i class="fas fa-eye"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-secondary" title="编辑">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-danger" title="删除">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="6" class="text-center py-4 text-muted">
+                                                <i class="fas fa-tasks fa-3x mb-3"></i>
+                                                <p>暂无任务</p>
+                                                <button class="btn btn-primary" onclick="addTask()">创建第一个任务</button>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- 团队成员 -->
+                        <div class="tab-pane fade" id="team" role="tabpanel">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="mb-0">项目团队</h5>
+                                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addMemberModal">
+                                    <i class="fas fa-user-plus"></i> 添加成员
+                                </button>
+                            </div>
+                            <div class="row">
+                                {% for member in project.team_members.all %}
+                                <div class="col-md-4 mb-3">
+                                    <div class="card">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-user-circle fa-3x text-muted mb-2"></i>
+                                            <h6 class="card-title">{{ member.user.username }}</h6>
+                                            <p class="card-text text-muted">{{ member.role }}</p>
+                                            <span class="badge bg-success">活跃</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% empty %}
+                                <div class="col-12 text-center py-4">
+                                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                                    <p class="text-muted">暂无团队成员</p>
+                                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addMemberModal">
+                                        添加成员
+                                    </button>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- 项目文档 -->
+                        <div class="tab-pane fade" id="files" role="tabpanel">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="mb-0">项目文档</h5>
+                                <button class="btn btn-primary btn-sm" onclick="uploadFile()">
+                                    <i class="fas fa-upload"></i> 上传文档
+                                </button>
+                            </div>
+                            <div class="row">
+                                {% for doc in project.documents.all %}
+                                <div class="col-md-3 mb-3">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <div class="text-center">
+                                                <i class="fas fa-file-alt fa-3x text-muted mb-2"></i>
+                                                <h6 class="card-title">{{ doc.title }}</h6>
+                                                <p class="card-text text-muted small">
+                                                    {{ doc.upload_date|date:"Y-m-d H:i" }}
+                                                </p>
+                                                <div class="btn-group btn-group-sm w-100">
+                                                    <button class="btn btn-outline-primary" onclick="downloadFile('{{ doc.file.url }}')">
+                                                        <i class="fas fa-download"></i> 下载
+                                                    </button>
+                                                    <button class="btn btn-outline-danger" onclick="deleteFile()">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% empty %}
+                                <div class="col-12 text-center py-4">
+                                    <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
+                                    <p class="text-muted">暂无文档</p>
+                                    <button class="btn btn-primary" onclick="uploadFile()">上传第一个文档</button>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- 时间线 -->
+                        <div class="tab-pane fade" id="timeline" role="tabpanel">
+                            <div class="timeline">
+                                <div class="timeline-item">
+                                    <div class="timeline-marker bg-primary"></div>
+                                    <div class="timeline-content">
+                                        <h6 class="mb-1">项目创建</h6>
+                                        <p class="text-muted mb-0">{{ project.created_at|date:"Y-m-d H:i" }}</p>
+                                    </div>
+                                </div>
+                                {% if project.actual_start_date %}
+                                <div class="timeline-item">
+                                    <div class="timeline-marker bg-success"></div>
+                                    <div class="timeline-content">
+                                        <h6 class="mb-1">项目启动</h6>
+                                        <p class="text-muted mb-0">{{ project.actual_start_date|date:"Y-m-d H:i" }}</p>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                {% if project.actual_end_date %}
+                                <div class="timeline-item">
+                                    <div class="timeline-marker bg-info"></div>
+                                    <div class="timeline-content">
+                                        <h6 class="mb-1">项目完成</h6>
+                                        <p class="text-muted mb-0">{{ project.actual_end_date|date:"Y-m-d H:i" }}</p>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .timeline {
+        position: relative;
+        padding-left: 30px;
+    }
+    .timeline-item {
+        position: relative;
+        padding-bottom: 20px;
+    }
+    .timeline-marker {
+        position: absolute;
+        left: -35px;
+        top: 0;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: 2px solid #fff;
+        box-shadow: 0 0 0 2px #e3e6f0;
+    }
+    .timeline-content {
+        background: #f8f9fc;
+        padding: 15px;
+        border-radius: 5px;
+    }
+</style>
+{% endblock %}

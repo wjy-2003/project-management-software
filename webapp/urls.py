@@ -20,10 +20,11 @@ from django.conf.urls.static import static
 from django.urls import include, path
 from django.views.generic import RedirectView
 
+from . import views
 from .admin import custom_admin_site
 
 urlpatterns = [
-    path("", RedirectView.as_view(url="/login/", permanent=False)),
+    path("", views.DashboardView.as_view(), name="dashboard"),
     # 使用自定义的 AdminSite 处理登录与后台入口
     path("login/", custom_admin_site.urls),
     path("admin/", RedirectView.as_view(url="/projects/", permanent=False)),
@@ -31,6 +32,18 @@ urlpatterns = [
     path("git/", include("GitIntegration.urls")),
     path("projects/", include("ProjectManagement.urls")),
     path("teams/", include("TeamManagement.urls")),
+    # Webapp specific routes
+    path("dashboard/", views.DashboardView.as_view(), name="dashboard_alt"),
+    path(
+        "project-detail/<int:pk>/",
+        views.ProjectDetailView.as_view(),
+        name="project_detail",
+    ),
+    path(
+        "realtime-collab/", views.RealtimeCollabView.as_view(), name="realtime_collab"
+    ),
+    path("visualization/", views.VisualizationView.as_view(), name="visualization"),
+    path("requirements/", views.RequirementListView.as_view(), name="requirement_list"),
 ]
 
 if settings.DEBUG:

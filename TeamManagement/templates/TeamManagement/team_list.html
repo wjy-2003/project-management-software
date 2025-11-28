@@ -1,189 +1,221 @@
-{% extends 'base.html' %}
+{% extends 'TeamManagement/base.html' %}
 
 {% block title %}团队与用户管理{% endblock %}
 
-{% block content %}
-<div class="container-fluid mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1><i class="fas fa-users"></i> 团队与用户管理</h1>
-            <p class="text-muted">查看和管理团队及系统用户</p>
-        </div>
+{% block team_content %}
+<div class="content-header">
+    <h1><i class="fas fa-users"></i> 团队与用户管理</h1>
+    <div>
+        <a href="{% url 'TeamManagement:team-create' %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> 创建团队
+        </a>
+        {% if user.is_superuser %}
+        <a href="{% url 'TeamManagement:user-create' %}" class="btn btn-primary" style="margin-left: 8px;">
+            <i class="fas fa-user-plus"></i> 添加用户
+        </a>
+        {% endif %}
     </div>
+</div>
 
-    {% if messages %}
-    <div class="alert-container">
-        {% for message in messages %}
-        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-        {% endfor %}
+{% if messages %}
+<div class="mb-3">
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }}" style="margin-bottom: 8px; padding: 12px 16px; border-radius: 6px;">
+        {{ message }}
     </div>
-    {% endif %}
+    {% endfor %}
+</div>
+{% endif %}
 
-    <div class="row">
-        <!-- 团队列表 -->
-        <div class="col-lg-7">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">
-                        <i class="fas fa-list"></i> 我的团队 ({{ teams|length }})
-                    </h5>
-                    <a href="{% url 'TeamManagement:team-create' %}" class="btn btn-sm btn-primary">
-                        <i class="fas fa-plus-circle"></i> 创建团队
-                    </a>
-                </div>
-                <div class="card-body">
-                    {% if teams %}
-                    <div class="row">
-                        {% for team in teams %}
-                        <div class="col-md-6 mb-3">
-                            <div class="card h-100">
-                                <div class="card-body">
-                                    <h5 class="card-title">
-                                        <i class="fas fa-users text-primary"></i>
-                                        {{ team.name }}
-                                    </h5>
-                                    <p class="card-text text-muted small">
-                                        {{ team.description|truncatewords:15|default:"暂无描述" }}
-                                    </p>
-                                    <hr>
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <small class="text-muted">
-                                            <i class="fas fa-user"></i> {{ team.owner.get_username }}
-                                        </small>
-                                        <small class="text-muted">
-                                            {{ team.created_at|date:"Y-m-d" }}
-                                        </small>
-                                    </div>
-                                </div>
-                                <div class="card-footer bg-white">
-                                    <div class="d-flex justify-content-between">
-                                        <a href="{% url 'TeamManagement:team-detail' team.pk %}" class="btn btn-sm btn-outline-primary">
-                                            <i class="fas fa-eye"></i> 详情
-                                        </a>
-                                        <a href="{% url 'TeamManagement:team-member-list' team.pk %}" class="btn btn-sm btn-outline-info">
-                                            <i class="fas fa-users"></i> 成员
-                                        </a>
-                                    </div>
-                                </div>
+<!-- 统计卡片 -->
+<div class="stats-grid">
+    <div class="stat-card primary">
+        <div class="stat-header">
+            <div class="stat-title">我的团队</div>
+            <div class="stat-icon"><i class="fas fa-users"></i></div>
+        </div>
+        <div class="stat-value">{{ teams|length }}</div>
+        <div class="stat-description">个活跃团队</div>
+    </div>
+    <div class="stat-card success">
+        <div class="stat-header">
+            <div class="stat-title">系统用户</div>
+            <div class="stat-icon"><i class="fas fa-user-friends"></i></div>
+        </div>
+        <div class="stat-value">{{ users|length }}</div>
+        <div class="stat-description">位注册用户</div>
+    </div>
+    <div class="stat-card info">
+        <div class="stat-header">
+            <div class="stat-title">团队成员</div>
+            <div class="stat-icon"><i class="fas fa-user-check"></i></div>
+        </div>
+        <div class="stat-value">{{ team_members|length }}</div>
+        <div class="stat-description">位团队成员</div>
+    </div>
+    <div class="stat-card warning">
+        <div class="stat-header">
+            <div class="stat-title">超级管理员</div>
+            <div class="stat-icon"><i class="fas fa-shield-alt"></i></div>
+        </div>
+        <div class="stat-value">{{ superusers|length }}</div>
+        <div class="stat-description">位系统管理员</div>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+    <!-- 团队列表 -->
+    <div class="data-card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-list"></i>
+                我的团队
+            </h3>
+            <span class="text-secondary">{{ teams|length }} 个团队</span>
+        </div>
+        <div class="card-body">
+            {% if teams %}
+            <div style="display: grid; gap: 16px;">
+                {% for team in teams %}
+                <div class="data-card" style="margin: 0;">
+                    <div class="card-body" style="padding: 16px;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                            <div>
+                                <h4 style="margin: 0 0 4px 0; font-size: 16px; color: var(--text-color);">
+                                    <i class="fas fa-users text-primary"></i>
+                                    {{ team.name }}
+                                </h4>
+                                <p style="margin: 0; font-size: 14px; color: var(--text-secondary);">
+                                    {{ team.description|truncatewords:15|default:"暂无描述" }}
+                                </p>
                             </div>
                         </div>
-                        {% endfor %}
-                    </div>
-                    {% else %}
-                    <div class="text-center py-5">
-                        <i class="fas fa-users fa-4x text-muted mb-3"></i>
-                        <p class="text-muted">您还没有加入任何团队</p>
-                        <a href="{% url 'TeamManagement:team-create' %}" class="btn btn-primary">
-                            <i class="fas fa-plus-circle"></i> 创建第一个团队
-                        </a>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
 
-        <!-- 用户列表 -->
-        <div class="col-lg-5">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">
-                        <i class="fas fa-user-friends"></i> 系统用户 ({{ users|length }})
-                    </h5>
-                    {% if user.is_superuser %}
-                    <a href="{% url 'TeamManagement:user-create' %}" class="btn btn-sm btn-success">
-                        <i class="fas fa-user-plus"></i> 添加用户
-                    </a>
-                    {% endif %}
+                        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--text-secondary);">
+                            <span><i class="fas fa-user"></i> {{ team.owner.get_username }}</span>
+                            <span><i class="fas fa-calendar"></i> {{ team.created_at|date:"Y-m-d" }}</span>
+                        </div>
+
+                        <div style="display: flex; gap: 8px; margin-top: 12px;">
+                            <a href="{% url 'TeamManagement:team-detail' team.pk %}" class="btn btn-sm">
+                                <i class="fas fa-eye"></i> 详情
+                            </a>
+                            <a href="{% url 'TeamManagement:team-member-list' team.pk %}" class="btn btn-sm">
+                                <i class="fas fa-users"></i> 成员 ({{ team.team_members.count }})
+                            </a>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body" style="max-height: 800px; overflow-y: auto;">
-                    {% if users %}
-                    <div class="list-group list-group-flush">
-                        {% for u in users %}
-                        <div class="list-group-item">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div class="flex-grow-1">
-                                    <h6 class="mb-1">
-                                        <i class="fas fa-user{% if u.is_superuser %}-shield text-danger{% elif u.is_staff %}-tie text-warning{% endif %}"></i>
-                                        {{ u.get_username }}
-                                        {% if u.is_superuser %}
-                                        <span class="badge bg-danger">
-                                            <i class="fas fa-crown"></i> 超级管理员
-                                        </span>
-                                        {% elif u.is_staff %}
-                                        <span class="badge bg-warning text-dark">
-                                            <i class="fas fa-briefcase"></i> 职员
-                                        </span>
-                                        {% else %}
-                                        <span class="badge bg-info">
-                                            <i class="fas fa-user"></i> 普通用户
-                                        </span>
-                                        {% endif %}
-                                        {% if not u.is_active %}
-                                        <span class="badge bg-secondary">
-                                            <i class="fas fa-ban"></i> 未激活
-                                        </span>
-                                        {% else %}
-                                        <span class="badge bg-success">
-                                            <i class="fas fa-check-circle"></i> 激活
-                                        </span>
-                                        {% endif %}
-                                    </h6>
-                                    {% if u.get_full_name %}
-                                    <p class="mb-1 small text-muted">
-                                        <i class="fas fa-id-card"></i> {{ u.get_full_name }}
-                                    </p>
-                                    {% endif %}
-                                    {% if u.email %}
-                                    <p class="mb-1 small">
-                                        <i class="fas fa-envelope"></i> {{ u.email }}
-                                    </p>
-                                    {% endif %}
-                                    <p class="mb-0 small text-muted">
-                                        <i class="fas fa-calendar-plus"></i> 加入于 {{ u.date_joined|date:"Y-m-d H:i" }}
-                                    </p>
-                                </div>
-                                {% if user.is_superuser %}
-                                <div class="btn-group-vertical btn-group-sm ms-2">
-                                    <a href="{% url 'TeamManagement:user-update' u.pk %}"
-                                       class="btn btn-outline-primary btn-sm"
-                                       title="编辑">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <a href="{% url 'TeamManagement:user-change-password' u.pk %}"
-                                       class="btn btn-outline-warning btn-sm"
-                                       title="改密码">
-                                        <i class="fas fa-key"></i>
-                                    </a>
-                                    {% if u != user %}
-                                    <form method="post"
-                                          action="{% url 'TeamManagement:user-delete' u.pk %}"
-                                          style="display: inline;"
-                                          onsubmit="return confirm('确定要删除用户 {{ u.get_username }} 吗？');">
-                                        {% csrf_token %}
-                                        <button type="submit"
-                                                class="btn btn-outline-danger btn-sm w-100"
-                                                title="删除">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </form>
-                                    {% endif %}
-                                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-users"></i>
+                <h3>还没有团队</h3>
+                <p>创建您的第一个团队来开始协作</p>
+                <a href="{% url 'TeamManagement:team-create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> 创建团队
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 用户列表 -->
+    <div class="data-card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-user-friends"></i>
+                系统用户
+            </h3>
+            <span class="text-secondary">{{ users|length }} 位用户</span>
+        </div>
+        <div class="card-body" style="max-height: 600px; overflow-y: auto;">
+            {% if users %}
+            <div style="display: grid; gap: 12px;">
+                {% for u in users %}
+                <div style="border: 1px solid #f0f0f0; border-radius: 6px; padding: 12px; background: #fafafa;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div style="flex: 1;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                                <i class="fas fa-user{% if u.is_superuser %}-shield{% elif u.is_staff %}-tie{% endif %}"
+                                   style="color: {% if u.is_superuser %}var(--error-color){% elif u.is_staff %}var(--warning-color){% else %}var(--primary-color){% endif %};"></i>
+                                <strong style="font-size: 14px;">{{ u.get_username }}</strong>
+                                {% if u.is_superuser %}
+                                <span class="status-badge" style="background: var(--error-color); color: white;">
+                                    <i class="fas fa-crown"></i> 超级管理员
+                                </span>
+                                {% elif u.is_staff %}
+                                <span class="status-badge" style="background: var(--warning-color); color: white;">
+                                    <i class="fas fa-briefcase"></i> 职员
+                                </span>
+                                {% else %}
+                                <span class="status-badge" style="background: var(--primary-color); color: white;">
+                                    <i class="fas fa-user"></i> 普通用户
+                                </span>
+                                {% endif %}
+                                {% if not u.is_active %}
+                                <span class="status-badge" style="background: var(--text-secondary); color: white;">
+                                    <i class="fas fa-ban"></i> 未激活
+                                </span>
                                 {% endif %}
                             </div>
+
+                            {% if u.get_full_name %}
+                            <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 2px;">
+                                <i class="fas fa-id-card"></i> {{ u.get_full_name }}
+                            </div>
+                            {% endif %}
+
+                            {% if u.email %}
+                            <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 2px;">
+                                <i class="fas fa-envelope"></i> {{ u.email }}
+                            </div>
+                            {% endif %}
+
+                            <div style="font-size: 11px; color: var(--text-secondary);">
+                                <i class="fas fa-calendar-plus"></i> 加入于 {{ u.date_joined|date:"Y-m-d H:i" }}
+                            </div>
                         </div>
-                        {% endfor %}
+
+                        {% if user.is_superuser %}
+                        <div style="display: flex; flex-direction: column; gap: 4px; margin-left: 12px;">
+                            <a href="{% url 'TeamManagement:user-update' u.pk %}"
+                               class="btn btn-sm" style="padding: 4px 8px; font-size: 11px;">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <a href="{% url 'TeamManagement:user-change-password' u.pk %}"
+                               class="btn btn-sm" style="padding: 4px 8px; font-size: 11px;">
+                                <i class="fas fa-key"></i>
+                            </a>
+                            {% if u != user %}
+                            <form method="post"
+                                  action="{% url 'TeamManagement:user-delete' u.pk %}"
+                                  style="display: inline;"
+                                  onsubmit="return confirm('确定要删除用户 {{ u.get_username }} 吗？');">
+                                {% csrf_token %}
+                                <button type="submit"
+                                        class="btn btn-sm"
+                                        style="padding: 4px 8px; font-size: 11px; border-color: var(--error-color); color: var(--error-color);"
+                                        onmouseover="this.style.background='var(--error-color)'; this.style.color='white';"
+                                        onmouseout="this.style.background='white'; this.style.color='var(--error-color)';">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                        {% endif %}
                     </div>
-                    {% else %}
-                    <div class="text-center py-5">
-                        <i class="fas fa-user-slash fa-3x text-muted mb-3"></i>
-                        <p class="text-muted">暂无用户</p>
-                    </div>
-                    {% endif %}
                 </div>
+                {% endfor %}
             </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-user-slash"></i>
+                <h3>暂无用户</h3>
+                <p>系统中还没有注册用户</p>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>

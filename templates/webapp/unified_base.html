@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}项目管理系统{% endblock %}</title>
+
+    <!-- Ant Design CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/antd@5.12.8/dist/reset.css" />
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --primary-color: #1890ff;
+            --secondary-color: #722ed1;
+            --success-color: #52c41a;
+            --warning-color: #faad14;
+            --error-color: #f5222d;
+            --text-color: #262626;
+            --text-secondary: #8c8c8c;
+            --border-color: #d9d9d9;
+            --bg-color: #f0f2f5;
+            --header-height: 64px;
+            --sidebar-width: 240px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-color);
+            color: var(--text-color);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-color);
+        }
+
+        .header {
+            background: white;
+            padding: 0 24px;
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: var(--header-height);
+            z-index: 100;
+        }
+
+        .header h2 {
+            margin: 0;
+            color: var(--primary-color);
+            font-size: 20px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-menu {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .nav-item {
+            padding: 8px 12px;
+            border-radius: 6px;
+            color: var(--text-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .nav-item:hover {
+            background: #f5f5f5;
+            color: var(--primary-color);
+        }
+
+        .nav-item.active {
+            background: #e6f7ff;
+            color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .nav-collab {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            font-weight: 500;
+        }
+
+        .nav-collab:hover {
+            background: linear-gradient(135deg, #40a9ff, #9254de);
+            color: white;
+            transform: translateY(-1px);
+        }
+
+        .main-layout {
+            flex: 1;
+            display: flex;
+            height: calc(100vh - var(--header-height));
+        }
+
+        .content-area {
+            flex: 1;
+            background: white;
+            margin: 16px;
+            border-radius: 8px;
+            overflow-y: auto;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+        }
+
+        .content-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .content-header h1 {
+            font-size: 20px;
+            font-weight: 500;
+            color: var(--text-color);
+            margin: 0;
+        }
+
+        .content-body {
+            padding: 24px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #f0f0f0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transform: translateY(-2px);
+        }
+
+        .stat-card.primary {
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .stat-card.success {
+            border-left: 4px solid var(--success-color);
+        }
+
+        .stat-card.warning {
+            border-left: 4px solid var(--warning-color);
+        }
+
+        .stat-card.info {
+            border-left: 4px solid #13c2c2;
+        }
+
+        .stat-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .stat-title {
+            font-size: 14px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .stat-icon {
+            font-size: 20px;
+            color: var(--text-secondary);
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 600;
+            color: var(--text-color);
+            line-height: 1;
+        }
+
+        .stat-description {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .data-card {
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #f0f0f0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-body {
+            padding: 20px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        .data-table th {
+            background: #fafafa;
+            color: var(--text-color);
+            font-weight: 500;
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .data-table td {
+            padding: 12px;
+            border-bottom: 1px solid #f0f0f0;
+            color: var(--text-color);
+        }
+
+        .data-table tr:hover {
+            background: #fafafa;
+        }
+
+        .status-badge {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            display: inline-block;
+        }
+
+        .status-badge.planning {
+            background: #e6f7ff;
+            color: var(--primary-color);
+        }
+
+        .status-badge.in_progress {
+            background: #f6ffed;
+            color: var(--success-color);
+        }
+
+        .status-badge.completed {
+            background: #52c41a;
+            color: white;
+        }
+
+        .status-badge.suspended {
+            background: #fff7e6;
+            color: var(--warning-color);
+        }
+
+        .status-badge.cancelled {
+            background: #fff1f0;
+            color: var(--error-color);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 400;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+            color: var(--text-color);
+            gap: 6px;
+        }
+
+        .btn:hover {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .btn-primary:hover {
+            background: #40a9ff;
+            border-color: #40a9ff;
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 4px 8px;
+            font-size: 12px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state i {
+            font-size: 48px;
+            color: #d9d9d9;
+            margin-bottom: 16px;
+        }
+
+        .empty-state h3 {
+            font-size: 16px;
+            color: var(--text-color);
+            margin-bottom: 8px;
+        }
+
+        .empty-state p {
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 16px;
+            color: var(--text-secondary);
+            font-size: 12px;
+            border-top: 1px solid #f0f0f0;
+            background: white;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header {
+                padding: 0 16px;
+            }
+
+            .nav-menu {
+                display: none;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .content-area {
+                margin: 8px;
+            }
+
+            .content-body {
+                padding: 16px;
+            }
+        }
+
+        /* Utility classes */
+        .text-primary { color: var(--primary-color); }
+        .text-success { color: var(--success-color); }
+        .text-warning { color: var(--warning-color); }
+        .text-error { color: var(--error-color); }
+        .text-secondary { color: var(--text-secondary); }
+
+        .mb-0 { margin-bottom: 0; }
+        .mb-1 { margin-bottom: 8px; }
+        .mb-2 { margin-bottom: 16px; }
+        .mb-3 { margin-bottom: 24px; }
+
+        .flex { display: flex; }
+        .flex-center { align-items: center; justify-content: center; }
+        .flex-between { justify-content: space-between; }
+        .flex-1 { flex: 1; }
+    </style>
+
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="app">
+        <header class="header">
+            <div class="header-left">
+                <h2>🚀 项目管理系统</h2>
+                <nav class="nav-menu">
+                    <a href="{% url 'dashboard' %}" class="nav-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                        <i class="fas fa-home"></i>
+                        <span>仪表板</span>
+                    </a>
+                    <a href="{% url 'projectmanagement:project_list' %}" class="nav-item {% if request.resolver_match.url_name == 'project_list' %}active{% endif %}">
+                        <i class="fas fa-project-diagram"></i>
+                        <span>项目管理</span>
+                    </a>
+                    <a href="{% url 'TeamManagement:team-list' %}" class="nav-item {% if request.resolver_match.url_name == 'team_management' %}active{% endif %}">
+                        <i class="fas fa-users-cog"></i>
+                        <span>团队管理</span>
+                    </a>
+                    <a href="{% url 'GitIntegration:git_main' %}" class="nav-item {% if request.resolver_match.url_name == 'git_integration' %}active{% endif %}">
+                        <i class="fab fa-git-alt"></i>
+                        <span>代码管理</span>
+                    </a>
+                </nav>
+            </div>
+
+            <div class="header-right">
+                <a href="http://localhost:3000" class="nav-item nav-collab" target="_blank">
+                    <i class="fas fa-users"></i>
+                    <span>实时协作</span>
+                    <i class="fas fa-external-link-alt" style="font-size: 12px;"></i>
+                </a>
+
+                <form method="post" action="{% url 'admin:logout' %}" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm" onclick="return confirm('确定要退出登录吗？');">
+                        <i class="fas fa-sign-out-alt"></i>
+                        退出
+                    </button>
+                </form>
+            </div>
+        </header>
+
+        <div class="main-layout">
+            <div class="content-area">
+                {% block content %}{% endblock %}
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <div>&copy; 2025 项目管理系统 - 基于 Django 和 React 构建</div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.9/dayjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.9/locale/zh-cn.js"></script>
+    <script>
+        dayjs.locale('zh-cn');
+
+        // 确认对话框函数
+        function confirmAction(message) {
+            return confirm(message);
+        }
+
+        // AJAX 请求辅助函数
+        function apiRequest(url, options = {}) {
+            const defaultOptions = {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            };
+
+            return fetch(url, { ...defaultOptions, ...options });
+        }
+
+        // 获取 CSRF token
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

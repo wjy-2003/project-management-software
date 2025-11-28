@@ -1,48 +1,77 @@
-{% extends 'base.html' %}
+{% extends 'TeamManagement/base.html' %}
 
 {% block title %}{{ team.name }} - 成员列表{% endblock %}
 
-{% block content %}
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1>{{ team.name }} - 成员列表</h1>
-            <p class="text-muted">{{ team.description }}</p>
-        </div>
-        <div>
-            {% if can_manage %}
-            <a href="{% url 'TeamManagement:team-member-add' team.pk %}" class="btn btn-primary">
-                <i class="fas fa-user-plus"></i> 添加成员
-            </a>
-            {% endif %}
-            <a href="{% url 'TeamManagement:team-detail' team.pk %}" class="btn btn-secondary">
-                <i class="fas fa-arrow-left"></i> 返回团队详情
-            </a>
-        </div>
+{% block team_content %}
+<div class="content-header">
+    <div>
+        <h1><i class="fas fa-users"></i> {{ team.name }} - 成员列表</h1>
+        <div class="text-secondary">{{ team.description }}</div>
     </div>
+    <div>
+        {% if can_manage %}
+        <a href="{% url 'TeamManagement:team-member-add' team.pk %}" class="btn btn-primary">
+            <i class="fas fa-user-plus"></i> 添加成员
+        </a>
+        {% endif %}
+        <a href="{% url 'TeamManagement:team-detail' team.pk %}" class="btn">
+            <i class="fas fa-arrow-left"></i> 返回团队详情
+        </a>
+    </div>
+</div>
 
+<div class="content-body">
     {% if messages %}
-    <div class="alert-container">
-        {% for message in messages %}
-        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-        {% endfor %}
+    {% for message in messages %}
+    <div class="stat-card {% if message.tags == 'error' %}warning{% elif message.tags == 'success' %}success{% else %}info{% endif %}" style="margin-bottom: 16px;">
+        {{ message }}
     </div>
+    {% endfor %}
     {% endif %}
 
-    <div class="card">
+    <!-- Statistics Cards -->
+    <div class="stats-grid" style="margin-bottom: 24px;">
+        <div class="stat-card primary">
+            <div class="stat-header">
+                <div class="stat-title">总成员数</div>
+                <div class="stat-icon"><i class="fas fa-users"></i></div>
+            </div>
+            <div class="stat-value">{{ members|length }}</div>
+            <div class="stat-description">团队成员总数</div>
+        </div>
+
+        <div class="stat-card success">
+            <div class="stat-header">
+                <div class="stat-title">激活成员</div>
+                <div class="stat-icon"><i class="fas fa-user-check"></i></div>
+            </div>
+            <div class="stat-value">{{ members|dictsort:"is_active"|reverse|length }}</div>
+            <div class="stat-description">当前活跃成员</div>
+        </div>
+
+        <div class="stat-card warning">
+            <div class="stat-header">
+                <div class="stat-title">管理员</div>
+                <div class="stat-icon"><i class="fas fa-user-shield"></i></div>
+            </div>
+            <div class="stat-value">{{ members|dictsort:"role"|length }}</div>
+            <div class="stat-description">拥有管理权限</div>
+        </div>
+    </div>
+
+    <div class="data-card">
         <div class="card-header">
-            <h5 class="mb-0">
-                <i class="fas fa-users"></i> 团队成员 ({{ members|length }})
-            </h5>
+            <div class="card-title">
+                <i class="fas fa-users"></i>
+                团队成员列表
+                <span class="status-badge" style="margin-left: 8px;">{{ members|length }} 位成员</span>
+            </div>
         </div>
         <div class="card-body">
             {% if members %}
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead class="thead-light">
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
                         <tr>
                             <th>成员</th>
                             <th>角色</th>
@@ -57,28 +86,32 @@
                         {% for member in members %}
                         <tr>
                             <td>
-                                <i class="fas fa-user"></i>
-                                {{ member.user.get_username }}
-                                {% if member.user.get_full_name %}
-                                <small class="text-muted">({{ member.user.get_full_name }})</small>
-                                {% endif %}
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <i class="fas fa-user" style="color: var(--text-secondary);"></i>
+                                    <div>
+                                        <div style="font-weight: 500;">{{ member.user.get_username }}</div>
+                                        {% if member.user.get_full_name %}
+                                        <div class="text-secondary" style="font-size: 12px;">{{ member.user.get_full_name }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
                             </td>
                             <td>
-                                <span class="badge bg-info">{{ member.role }}</span>
+                                <span class="status-badge" style="background: #e6f7ff; color: var(--primary-color);">{{ member.role }}</span>
                             </td>
                             <td>
                                 {% if member.is_active %}
-                                <span class="badge bg-success">激活</span>
+                                <span class="status-badge" style="background: #f6ffed; color: var(--success-color);">激活</span>
                                 {% else %}
-                                <span class="badge bg-secondary">未激活</span>
+                                <span class="status-badge" style="background: #fff7e6; color: var(--warning-color);">未激活</span>
                                 {% endif %}
                             </td>
                             <td>{{ member.joined_at|date:"Y-m-d H:i" }}</td>
                             {% if can_manage %}
                             <td>
-                                <div class="btn-group btn-group-sm" role="group">
+                                <div style="display: flex; gap: 8px;">
                                     <a href="{% url 'TeamManagement:team-member-update' team.pk member.pk %}"
-                                       class="btn btn-outline-primary"
+                                       class="btn btn-sm"
                                        title="编辑成员">
                                         <i class="fas fa-edit"></i> 编辑
                                     </a>
@@ -87,7 +120,7 @@
                                           style="display: inline;"
                                           onsubmit="return confirm('确定要移除该成员吗？');">
                                         {% csrf_token %}
-                                        <button type="submit" class="btn btn-outline-danger btn-sm">
+                                        <button type="submit" class="btn btn-sm" style="color: var(--error-color); border-color: var(--error-color);">
                                             <i class="fas fa-user-minus"></i> 移除
                                         </button>
                                     </form>
@@ -100,8 +133,15 @@
                 </table>
             </div>
             {% else %}
-            <div class="alert alert-info">
-                <i class="fas fa-info-circle"></i> 该团队暂无成员
+            <div class="empty-state">
+                <i class="fas fa-users"></i>
+                <h3>该团队暂无成员</h3>
+                <p>开始添加团队成员来协作文档</p>
+                {% if can_manage %}
+                <a href="{% url 'TeamManagement:team-member-add' team.pk %}" class="btn btn-primary">
+                    <i class="fas fa-user-plus"></i> 添加第一个成员
+                </a>
+                {% endif %}
             </div>
             {% endif %}
         </div>
