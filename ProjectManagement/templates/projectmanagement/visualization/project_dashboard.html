@@ -1,0 +1,355 @@
+{% extends 'projectmanagement/base.html' %}
+{% load static %}
+
+{% block title %}项目仪表板 — {{ project.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .visualization-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        margin: -2rem -2rem 0;
+        border-radius: 8px;
+        text-align: center;
+    }
+
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin: 2rem 0;
+    }
+
+    .chart-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        padding: 1.5rem;
+        transition: transform 0.2s;
+    }
+
+    .chart-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    }
+
+    .chart-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #e9ecef;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-item {
+        background: #f8f9fa;
+        padding: 1rem;
+        border-radius: 8px;
+        text-align: center;
+        border-left: 4px solid;
+    }
+
+    .stat-item.total { border-left-color: #007bff; }
+    .stat-item.completed { border-left-color: #28a745; }
+    .stat-item.progress { border-left-color: #ffc107; }
+    .stat-item.pending { border-left-color: #6c757d; }
+
+    .stat-value {
+        font-size: 2rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+        font-size: 0.9rem;
+        color: #666;
+    }
+
+    .chart-container {
+        position: relative;
+        height: 300px;
+        width: 100%;
+    }
+
+    .quick-links {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+    }
+
+    .quick-link-btn {
+        background: #007bff;
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 6px;
+        text-decoration: none;
+        transition: background 0.2s;
+    }
+
+    .quick-link-btn:hover {
+        background: #0056b3;
+        color: white;
+        text-decoration: none;
+    }
+</style>
+{% endblock %}
+
+{% block project_content %}
+<div class="container-fluid">
+    <div class="visualization-header">
+        <h1>{{ project.title }} — 项目仪表板</h1>
+        <p class="mb-0">{{ project.project_number }} | 状态: {{ project.get_status_display }}</p>
+    </div>
+
+    <!-- 快速导航 -->
+    <div class="quick-links">
+        <a href="{% url 'projectmanagement:project_burndown_chart' project.project_number %}" class="quick-link-btn">
+            📉 燃尽图
+        </a>
+        <a href="{% url 'projectmanagement:project_info' project.project_number %}" class="quick-link-btn">
+            🔙 返回项目详情
+        </a>
+    </div>
+
+    <!-- 基础统计 -->
+    <div class="stats-grid">
+        <div class="stat-item total">
+            <div class="stat-value">{{ total_tasks }}</div>
+            <div class="stat-label">总任务数</div>
+        </div>
+        <div class="stat-item completed">
+            <div class="stat-value">{{ completed_tasks }}</div>
+            <div class="stat-label">已完成</div>
+        </div>
+        <div class="stat-item progress">
+            <div class="stat-value">{{ in_progress_tasks }}</div>
+            <div class="stat-label">进行中</div>
+        </div>
+        <div class="stat-item pending">
+            <div class="stat-value">{{ not_started_tasks }}</div>
+            <div class="stat-label">未开始</div>
+        </div>
+    </div>
+
+    <!-- 图表网格 -->
+    <div class="dashboard-grid">
+        <!-- 工时统计 -->
+        <div class="chart-card">
+            <h3 class="chart-title">⏱️ 工时统计</h3>
+            <div class="chart-container">
+                <canvas id="hoursChart"></canvas>
+            </div>
+            <div class="mt-3">
+                <p><strong>总工时:</strong> {{ total_estimated_hours }}h</p>
+                <p><strong>已消耗:</strong> {{ consumed_hours }}h</p>
+                <p><strong>剩余:</strong> {{ remaining_hours }}h</p>
+                <div class="progress-container mt-2">
+                    <div class="progress" style="height: 20px;">
+                        <div class="progress-bar" role="progressbar" style="width: {{ progress_percentage }}%; background: linear-gradient(90deg, #28a745, #20c997);">
+                            {{ progress_percentage }}%
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 任务状态分布 -->
+        <div class="chart-card">
+            <h3 class="chart-title">📋 任务状态分布</h3>
+            <div class="chart-container">
+                <canvas id="taskStatusChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 团队统计 -->
+        <div class="chart-card">
+            <h3 class="chart-title">👥 团队统计</h3>
+            <div class="chart-container">
+                <canvas id="teamChart"></canvas>
+            </div>
+            <div class="mt-3">
+                <p><strong>团队成员:</strong> {{ team_members }} 人</p>
+                <p><strong>已分配任务:</strong> {{ assigned_members }} 人</p>
+            </div>
+        </div>
+
+        <!-- 项目进度 -->
+        <div class="chart-card">
+            <h3 class="chart-title">🎯 项目进度</h3>
+            <div class="chart-container">
+                <canvas id="progressChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 图表默认设置
+    Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+
+    // 工时统计图表
+    const hoursCtx = document.getElementById('hoursChart').getContext('2d');
+    new Chart(hoursCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['已消耗工时', '剩余工时'],
+            datasets: [{
+                data: [{{ consumed_hours }}, {{ remaining_hours }}],
+                backgroundColor: [
+                    'rgba(255, 99, 132, 0.8)',
+                    'rgba(54, 162, 235, 0.8)'
+                ],
+                borderColor: [
+                    'rgba(255, 99, 132, 1)',
+                    'rgba(54, 162, 235, 1)'
+                ],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                }
+            }
+        }
+    });
+
+    // 任务状态分布图表
+    const taskStatusCtx = document.getElementById('taskStatusChart').getContext('2d');
+    new Chart(taskStatusCtx, {
+        type: 'pie',
+        data: {
+            labels: [{% for status in task_status_distribution %}'{{ status.status }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+            datasets: [{
+                data: [{% for status in task_status_distribution %}{{ status.count }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+                backgroundColor: [
+                    'rgba(255, 206, 86, 0.8)',
+                    'rgba(75, 192, 192, 0.8)',
+                    'rgba(54, 162, 235, 0.8)',
+                    'rgba(153, 102, 255, 0.8)',
+                    'rgba(255, 99, 132, 0.8)'
+                ],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.parsed;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((value / total) * 100).toFixed(1);
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // 团队统计图表
+    const teamCtx = document.getElementById('teamChart').getContext('2d');
+    new Chart(teamCtx, {
+        type: 'bar',
+        data: {
+            labels: ['团队成员', '已分配任务成员'],
+            datasets: [{
+                label: '人数',
+                data: [{{ team_members }}, {{ assigned_members }}],
+                backgroundColor: [
+                    'rgba(75, 192, 192, 0.8)',
+                    'rgba(255, 159, 64, 0.8)'
+                ],
+                borderColor: [
+                    'rgba(75, 192, 192, 1)',
+                    'rgba(255, 159, 64, 1)'
+                ],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+
+    // 项目进度图表
+    const progressCtx = document.getElementById('progressChart').getContext('2d');
+    new Chart(progressCtx, {
+        type: 'line',
+        data: {
+            labels: ['计划进度', '实际进度'],
+            datasets: [{
+                label: '完成百分比',
+                data: [{{ progress_percentage }}, {{ progress_percentage }}],
+                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 3,
+                pointBackgroundColor: ['rgba(255, 99, 132, 1)', 'rgba(75, 192, 192, 1)'],
+                pointBorderColor: ['#fff', '#fff'],
+                pointBorderWidth: 2,
+                pointRadius: 8,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

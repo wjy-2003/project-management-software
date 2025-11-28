@@ -4,20 +4,37 @@ __pycache__/
 webapp/__pycache__/
 *.pyo
 *.pyd
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/
+swp-
+*.swp
+*.swo
+*~
 
 # VSCode
 .vscode/
-
-# Django static/media
-static/
-media/
+*.vscode/
 
 # Pre-commit/patch cache
-.cache/
+.pre-commit-cache/
 *.patch
 
 # Git
 .git/
+.gitignore
 
 # temp files
 *.swp
@@ -27,6 +44,7 @@ media/
 *.orig
 *.save
 *.~
+*~
 
 # Windows
 Thumbs.db
@@ -34,11 +52,131 @@ Desktop.ini
 
 # Mac
 .DS_Store
+.AppleDouble
+.Spotlight-V100
+.Trashes
 
 # Jupyter
 .ipynb_checkpoints/
+*.ipynb
 
-# 其他
+# Other
 *.log
-*.out
 *.pid
+*.seed
+*.pid.lock
+vendor/
+bower_components/
+node_modules/
+.sass-cache/
+
+# Django static/media
+static/
+media/
+
+# React builds
+/CollaborationEditor/build
+/CollaborationEditor/dist
+/CollabFrontend/build
+/CollabFrontend/dist
+/CollabEditor/build
+/CollabEditor/dist
+
+# Dependencies
+package-lock.json
+yarn.lock
+
+# Environment files (keep .env.example but ignore actual .env)
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# OS generated files
+.DS_Store?
+ehthumbs.db
+Icon?
+Thumbs.db_
+
+# Logs
+*.log
+logs/
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+.nyc_output
+
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variables file
+.env.example
+
+# parcel-bundler cache (https://parceljs.org/)
+.cache
+.parcel-cache
+
+# next.js build output
+.next
+
+# nuxt.js build output
+.nuxt
+
+# vuepress build output
+.vuepress/dist
+
+# Serverless directories
+.serverless
+
+# FuseBox cache
+.fusebox/
+
+# DynamoDB Local
+.dynamodb/
+
+# TernJS port file
+.tern-port
+
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test
+
+# Cypress
+cypress/
+videos/
+screenshots/
+
+# Local Netlify folder
+.netlify
+
+# SvelteKit build / generate output
+.svelte-kit
+
+# Other collaboration tools
+*.ipynb
+.jupyter/

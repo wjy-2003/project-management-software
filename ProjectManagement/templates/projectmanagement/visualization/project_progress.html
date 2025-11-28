@@ -1,0 +1,444 @@
+{% extends 'projectmanagement/base.html' %}
+{% load static %}
+
+{% block title %}项目进度分析 — {{ project.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .visualization-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        margin: -2rem -2rem 0;
+        border-radius: 8px;
+        text-align: center;
+    }
+
+    .progress-overview {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin: 2rem 0;
+    }
+
+    .progress-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        text-align: center;
+        border-top: 4px solid;
+        transition: transform 0.2s;
+    }
+
+    .progress-card:hover {
+        transform: translateY(-2px);
+    }
+
+    .progress-card.total { border-top-color: #007bff; }
+    .progress-card.completed { border-top-color: #28a745; }
+    .progress-card.hours { border-top-color: #ffc107; }
+    .progress-card.team { border-top-color: #6f42c1; }
+
+    .chart-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+        margin: 2rem 0;
+    }
+
+    @media (max-width: 768px) {
+        .chart-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .chart-container {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+    }
+
+    .chart-wrapper {
+        position: relative;
+        height: 400px;
+        width: 100%;
+    }
+
+    .progress-bar-container {
+        background: #e9ecef;
+        border-radius: 10px;
+        overflow: hidden;
+        margin: 1rem 0;
+    }
+
+    .progress-bar-fill {
+        height: 30px;
+        background: linear-gradient(90deg, #28a745, #20c997);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        transition: width 0.5s ease;
+    }
+
+    .metric-value {
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: #333;
+        margin: 0.5rem 0;
+    }
+
+    .metric-label {
+        font-size: 1rem;
+        color: #666;
+        margin-bottom: 1rem;
+    }
+
+    .metric-detail {
+        font-size: 0.9rem;
+        color: #888;
+        margin-top: 0.5rem;
+    }
+
+    .navigation-links {
+        display: flex;
+        gap: 1rem;
+        margin: 2rem 0;
+        flex-wrap: wrap;
+    }
+
+    .nav-link {
+        background: #007bff;
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 6px;
+        text-decoration: none;
+        transition: background 0.2s;
+    }
+
+    .nav-link:hover {
+        background: #0056b3;
+        color: white;
+        text-decoration: none;
+    }
+</style>
+{% endblock %}
+
+{% block project_content %}
+<div class="container-fluid">
+    <div class="visualization-header">
+        <h1>{{ project.title }} — 项目进度分析</h1>
+        <p class="mb-0">{{ project.project_number }} | 状态: {{ project.get_status_display }}</p>
+    </div>
+
+    <!-- 导航链接 -->
+    <div class="navigation-links">
+        <a href="{% url 'projectmanagement:project_dashboard' project.project_number %}" class="nav-link">
+            📊 仪表板
+        </a>
+        <a href="{% url 'projectmanagement:project_burndown_chart' project.project_number %}" class="nav-link">
+            📉 燃尽图
+        </a>
+        <a href="{% url 'projectmanagement:team_workload_chart' project.project_number %}" class="nav-link">
+            👥 团队负载
+        </a>
+        <a href="{% url 'projectmanagement:task_timeline_chart' project.project_number %}" class="nav-link">
+            📅 时间线
+        </a>
+        <a href="{% url 'projectmanagement:project_info' project.project_number %}" class="nav-link">
+            🔙 返回项目
+        </a>
+    </div>
+
+    <!-- 进度概览 -->
+    <div class="progress-overview">
+        <div class="progress-card total">
+            <h3>📋 总体任务</h3>
+            <div class="metric-value">{{ total_tasks }}</div>
+            <div class="metric-label">任务总数</div>
+            <div class="metric-detail">已完成: {{ completed_tasks }} ({{ completed_tasks|default:0|add:0|div:total_tasks|default:1|mul:100|floatformat:1 }}%)</div>
+        </div>
+
+        <div class="progress-card completed">
+            <h3>✅ 完成进度</h3>
+            <div class="metric-value">{{ progress_percentage }}%</div>
+            <div class="metric-label">项目完成度</div>
+            <div class="progress-bar-container">
+                <div class="progress-bar-fill" style="width: {{ progress_percentage }}%">
+                    {{ progress_percentage }}%
+                </div>
+            </div>
+        </div>
+
+        <div class="progress-card hours">
+            <h3>⏱️ 工时消耗</h3>
+            <div class="metric-value">{{ consumed_hours }}h</div>
+            <div class="metric-label">已消耗工时</div>
+            <div class="metric-detail">总计: {{ total_estimated_hours }}h | 剩余: {{ remaining_hours }}h</div>
+        </div>
+
+        <div class="progress-card team">
+            <h3>👥 任务状态</h3>
+            <div class="metric-value">{{ task_status_counts|length }}</div>
+            <div class="metric-label">状态类型</div>
+            <div class="metric-detail">涵盖所有任务状态分布</div>
+        </div>
+    </div>
+
+    <!-- 图表网格 -->
+    <div class="chart-grid">
+        <!-- 任务状态分布图 -->
+        <div class="chart-container">
+            <h3 class="mb-4">📊 任务状态分布</h3>
+            <div class="chart-wrapper">
+                <canvas id="taskStatusChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 工时消耗对比图 -->
+        <div class="chart-container">
+            <h3 class="mb-4">⏱️ 工时消耗对比</h3>
+            <div class="chart-wrapper">
+                <canvas id="hoursChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 进度趋势图 -->
+        <div class="chart-container">
+            <h3 class="mb-4">📈 项目进度趋势</h3>
+            <div class="chart-wrapper">
+                <canvas id="progressTrendChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 任务状态详细统计 -->
+        <div class="chart-container">
+            <h3 class="mb-4">📋 状态详细统计</h3>
+            <div class="chart-wrapper">
+                <canvas id="statusDetailChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 设置Chart.js默认字体
+    Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+
+    // 任务状态分布图
+    const taskStatusCtx = document.getElementById('taskStatusChart').getContext('2d');
+    const statusLabels = [{% for status_label, count in task_status_counts.items %}'{{ status_label }}'{% if not forloop.last %}, {% endif %}{% endfor %}];
+    const statusCounts = [{% for status_label, count in task_status_counts.items %}{{ count }}{% if not forloop.last %}, {% endif %}{% endfor %}];
+
+    new Chart(taskStatusCtx, {
+        type: 'pie',
+        data: {
+            labels: statusLabels,
+            datasets: [{
+                data: statusCounts,
+                backgroundColor: [
+                    'rgba(255, 99, 132, 0.8)',
+                    'rgba(54, 162, 235, 0.8)',
+                    'rgba(255, 206, 86, 0.8)',
+                    'rgba(75, 192, 192, 0.8)',
+                    'rgba(153, 102, 255, 0.8)'
+                ],
+                borderColor: [
+                    'rgba(255, 99, 132, 1)',
+                    'rgba(54, 162, 235, 1)',
+                    'rgba(255, 206, 86, 1)',
+                    'rgba(75, 192, 192, 1)',
+                    'rgba(153, 102, 255, 1)'
+                ],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 20,
+                        usePointStyle: true
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.parsed;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                            return `${label}: ${value} 个任务 (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // 工时消耗对比图
+    const hoursCtx = document.getElementById('hoursChart').getContext('2d');
+    new Chart(hoursCtx, {
+        type: 'bar',
+        data: {
+            labels: ['计划工时', '已消耗工时', '剩余工时'],
+            datasets: [{
+                label: '工时 (小时)',
+                data: [{{ total_estimated_hours }}, {{ consumed_hours }}, {{ remaining_hours }}],
+                backgroundColor: [
+                    'rgba(54, 162, 235, 0.8)',
+                    'rgba(255, 99, 132, 0.8)',
+                    'rgba(75, 192, 192, 0.8)'
+                ],
+                borderColor: [
+                    'rgba(54, 162, 235, 1)',
+                    'rgba(255, 99, 132, 1)',
+                    'rgba(75, 192, 192, 1)'
+                ],
+                borderWidth: 2,
+                borderRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: '工时 (小时)'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+
+    // 进度趋势图 (模拟数据)
+    const progressTrendCtx = document.getElementById('progressTrendChart').getContext('2d');
+    // 生成模拟的进度趋势数据
+    const progressData = [];
+    const weekCount = 8; // 假设8周的项目
+    for (let i = 0; i <= weekCount; i++) {
+        progressData.push(Math.min({{ progress_percentage }}, (i / weekCount) * 100));
+    }
+
+    new Chart(progressTrendCtx, {
+        type: 'line',
+        data: {
+            labels: Array.from({length: weekCount + 1}, (_, i) => `第${i}周`),
+            datasets: [{
+                label: '实际进度',
+                data: progressData,
+                borderColor: 'rgba(75, 192, 192, 1)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.3,
+                pointBackgroundColor: 'rgba(75, 192, 192, 1)',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 5
+            }, {
+                label: '理想进度',
+                data: Array.from({length: weekCount + 1}, (_, i) => (i / weekCount) * 100),
+                borderColor: 'rgba(255, 99, 132, 1)',
+                backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                borderWidth: 2,
+                borderDash: [5, 5],
+                fill: false,
+                pointRadius: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    title: {
+                        display: true,
+                        text: '完成百分比 (%)'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // 状态详细统计图
+    const statusDetailCtx = document.getElementById('statusDetailChart').getContext('2d');
+    new Chart(statusDetailCtx, {
+        type: 'doughnut',
+        data: {
+            labels: statusLabels,
+            datasets: [{
+                data: statusCounts,
+                backgroundColor: [
+                    'rgba(255, 206, 86, 0.8)',
+                    'rgba(75, 192, 192, 0.8)',
+                    'rgba(54, 162, 235, 0.8)',
+                    'rgba(153, 102, 255, 0.8)',
+                    'rgba(255, 99, 132, 0.8)'
+                ],
+                borderColor: [
+                    'rgba(255, 206, 86, 1)',
+                    'rgba(75, 192, 192, 1)',
+                    'rgba(54, 162, 235, 1)',
+                    'rgba(153, 102, 255, 1)',
+                    'rgba(255, 99, 132, 1)'
+                ],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '60%',
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 15,
+                        usePointStyle: true
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.parsed;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

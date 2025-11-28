@@ -1,0 +1,158 @@
+{% extends 'TeamManagement/base.html' %}
+
+{% block title %}{% if action == 'update' %}编辑团队成员{% else %}添加团队成员{% endif %} - {{ team.name }}{% endblock %}
+
+{% block team_content %}
+<div class="content-header">
+    <div>
+        <h1>
+            <i class="fas {% if action == 'update' %}fa-user-edit{% else %}fa-user-plus{% endif %}"></i>
+            {% if action == 'update' %}编辑团队成员{% else %}添加团队成员{% endif %}
+        </h1>
+        <div class="text-secondary">团队: {{ team.name }}</div>
+    </div>
+    <div>
+        <a href="{% url 'TeamManagement:team-member-list' team.pk %}" class="btn">
+            <i class="fas fa-arrow-left"></i> 返回成员列表
+        </a>
+    </div>
+</div>
+
+<div class="content-body">
+    {% if messages %}
+    {% for message in messages %}
+    <div class="stat-card {% if message.tags == 'error' %}warning{% elif message.tags == 'success' %}success{% else %}info{% endif %}" style="margin-bottom: 16px;">
+        {{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <div class="data-card">
+        <div class="card-header">
+            <div class="card-title">
+                <i class="fas fa-clipboard-list"></i>
+                成员信息表单
+            </div>
+        </div>
+        <div class="card-body">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+
+                        {% if form.non_field_errors %}
+                        <div class="stat-card warning" style="margin-bottom: 16px;">
+                            {{ form.non_field_errors }}
+                        </div>
+                        {% endif %}
+
+                        {% for field in form %}
+                        <div style="margin-bottom: 24px;">
+                            <label for="{{ field.id_for_label }}" style="display: block; margin-bottom: 8px; font-weight: 500;">
+                                {{ field.label }}
+                                {% if field.field.required %}
+                                <span class="text-error">*</span>
+                                {% endif %}
+                            </label>
+
+                            {% if field.name == 'user' %}
+                            <select name="{{ field.name }}"
+                                    id="{{ field.id_for_label }}"
+                                    style="width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; {% if field.errors %}border-color: var(--error-color);{% endif %}"
+                                    {% if field.field.required %}required{% endif %}
+                                    {% if action == 'update' %}disabled{% endif %}>
+                                <option value="">请选择用户</option>
+                                {% for choice_value, choice_label in field.field.choices %}
+                                    {% if choice_value %}
+                                    <option value="{{ choice_value }}" {% if field.value == choice_value or field.value|stringformat:"s" == choice_value|stringformat:"s" %}selected{% endif %}>
+                                        {{ choice_label }}
+                                    </option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                            {% if action == 'update' %}
+                            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">编辑时不能更改成员用户</div>
+                            {% endif %}
+                            {% elif field.name == 'role' %}
+                            <select name="{{ field.name }}"
+                                    id="{{ field.id_for_label }}"
+                                    style="width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; {% if field.errors %}border-color: var(--error-color);{% endif %}"
+                                    {% if field.field.required %}required{% endif %}>
+                                <option value="">请选择角色</option>
+                                {% for choice_value, choice_label in field.field.choices %}
+                                    {% if choice_value %}
+                                    <option value="{{ choice_value }}" {% if field.value == choice_value or field.value|stringformat:"s" == choice_value|stringformat:"s" %}selected{% endif %}>
+                                        {{ choice_label }}
+                                    </option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                            {% elif field.name == 'is_active' %}
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox"
+                                       name="{{ field.name }}"
+                                       id="{{ field.id_for_label }}"
+                                       style="width: 16px; height: 16px; {% if field.errors %}border-color: var(--error-color);{% endif %}"
+                                       {% if field.value %}checked{% endif %}>
+                                <label for="{{ field.id_for_label }}" style="margin: 0; font-weight: normal;">
+                                    激活状态
+                                </label>
+                            </div>
+                            {% else %}
+                            <input type="text"
+                                   name="{{ field.name }}"
+                                   id="{{ field.id_for_label }}"
+                                   value="{{ field.value|default:'' }}"
+                                   style="width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; {% if field.errors %}border-color: var(--error-color);{% endif %}"
+                                   {% if field.field.required %}required{% endif %}
+                                   placeholder="请输入{{ field.label }}">
+                            {% endif %}
+
+                            {% if field.help_text %}
+                            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">{{ field.help_text }}</div>
+                            {% endif %}
+
+                            {% if field.errors %}
+                            <div style="font-size: 12px; color: var(--error-color); margin-top: 4px;">
+                                {% for error in field.errors %}
+                                {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+
+                        <hr style="border: none; border-top: 1px solid #f0f0f0; margin: 24px 0;">
+
+                        <div style="display: flex; justify-content: space-between; gap: 12px;">
+                            <button type="submit" class="btn {% if action == 'update' %}btn-primary{% else %}btn-primary{% endif %}">
+                                <i class="fas {% if action == 'update' %}fa-save{% else %}fa-user-plus{% endif %}"></i>
+                                {% if action == 'update' %}保存修改{% else %}添加成员{% endif %}
+                            </button>
+                            <a href="{% url 'TeamManagement:team-member-list' team.pk %}" class="btn">
+                                <i class="fas fa-times"></i> 取消
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="data-card" style="margin-top: 16px;">
+                <div class="card-body">
+                    <div class="card-title">
+                        <i class="fas fa-info-circle text-primary"></i>
+                        提示
+                    </div>
+                    <ul style="margin: 12px 0 0 0; padding-left: 20px; color: var(--text-secondary);">
+                        {% if action == 'update' %}
+                        <li>可以修改成员的角色和激活状态</li>
+                        <li>编辑时不能更改成员用户</li>
+                        <li>禁用成员后，该成员将无法访问团队资源</li>
+                        {% else %}
+                        <li>只能添加尚未加入此团队的用户</li>
+                        <li>请为新成员选择合适的角色</li>
+                        <li>可以稍后在成员列表中修改成员的角色和状态</li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+</div>
+{% endblock %}

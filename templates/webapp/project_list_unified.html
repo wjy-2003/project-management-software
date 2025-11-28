@@ -1,0 +1,256 @@
+{% extends "webapp/unified_base.html" %}
+
+{% block title %}项目管理 - 项目管理系统{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <h1>
+        <i class="fas fa-project-diagram"></i>
+        项目管理
+    </h1>
+    <div>
+        <a href="{% url 'project-create' %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i>
+            创建项目
+        </a>
+    </div>
+</div>
+
+<div class="content-body">
+    <!-- 状态统计 -->
+    <div class="stats-grid" style="margin-bottom: 20px;">
+        <div class="stat-card primary">
+            <div class="stat-header">
+                <div class="stat-title">规划中</div>
+                <i class="fas fa-clock stat-icon"></i>
+            </div>
+            <div class="stat-value">{{ project_status.planning }}</div>
+        </div>
+
+        <div class="stat-card warning">
+            <div class="stat-header">
+                <div class="stat-title">进行中</div>
+                <i class="fas fa-spinner stat-icon"></i>
+            </div>
+            <div class="stat-value">{{ project_status.in_progress }}</div>
+        </div>
+
+        <div class="stat-card success">
+            <div class="stat-header">
+                <div class="stat-title">已完成</div>
+                <i class="fas fa-check-circle stat-icon"></i>
+            </div>
+            <div class="stat-value">{{ project_status.completed }}</div>
+        </div>
+
+        <div class="stat-card info">
+            <div class="stat-header">
+                <div class="stat-title">已暂停</div>
+                <i class="fas fa-pause-circle stat-icon"></i>
+            </div>
+            <div class="stat-value">{{ project_status.suspended }}</div>
+        </div>
+    </div>
+
+    <!-- 项目列表 -->
+    <div class="data-card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-list"></i>
+                项目列表
+            </h3>
+            <div style="display: flex; gap: 8px;">
+                <select id="status-filter" class="btn" style="padding: 4px 8px;">
+                    <option value="">所有状态</option>
+                    <option value="planning">规划中</option>
+                    <option value="in_progress">进行中</option>
+                    <option value="completed">已完成</option>
+                    <option value="suspended">已暂停</option>
+                </select>
+                <select id="sort-filter" class="btn" style="padding: 4px 8px;">
+                    <option value="created_date">创建日期</option>
+                    <option value="planned_end_date">截止日期</option>
+                    <option value="title">项目名称</option>
+                </select>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if projects %}
+                <div class="table-container">
+                    <table class="data-table" id="projects-table">
+                        <thead>
+                            <tr>
+                                <th>项目编号</th>
+                                <th>项目名称</th>
+                                <th>描述</th>
+                                <th>负责人</th>
+                                <th>状态</th>
+                                <th>进度</th>
+                                <th>预计工时</th>
+                                <th>已用工时</th>
+                                <th>剩余工时</th>
+                                <th>截止日期</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for project in projects %}
+                            <tr data-status="{{ project.status }}">
+                                <td>
+                                    <a href="{% url 'projectmanagement:project_info' project.project_number %}" class="text-primary text-decoration-none">
+                                        {{ project.project_number }}
+                                    </a>
+                                </td>
+                                <td>
+                                    <a href="{% url 'projectmanagement:project_info' project.project_number %}" class="text-primary text-decoration-none">
+                                        {{ project.title }}
+                                    </a>
+                                </td>
+                                <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                    {{ project.description|default:"-" }}
+                                </td>
+                                <td>{{ project.project_manager.username|default:"-" }}</td>
+                                <td>
+                                    <span class="status-badge {{ project.status }}">
+                                        {{ project.status_label }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <div style="flex: 1; height: 6px; background: #f0f0f0; border-radius: 3px; overflow: hidden;">
+                                            <div style="width: {{ project.get_project_progress|floatformat:0 }}%; height: 100%; background: var(--success-color);"></div>
+                                        </div>
+                                        <span style="font-size: 12px; font-weight: 500;">{{ project.get_project_progress|floatformat:0 }}%</span>
+                                    </div>
+                                </td>
+                                <td>{{ project.estimated_hours|default:"0" }}</td>
+                                <td>{{ project.consumed_hours|default:"0" }}</td>
+                                <td>{{ project.remaining_hours|default:"0" }}</td>
+                                <td>{{ project.planned_end_date|default:"-" }}</td>
+                                <td>
+                                    <div style="display: flex; gap: 4px;">
+                                        <a href="{% url 'projectmanagement:project_info' project.project_number %}" class="btn btn-sm" title="查看详情">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{% url 'project-management:project_edit' project.project_number %}" class="btn btn-sm" title="编辑">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        {% if project.status == 'in_progress' %}
+                                            <form method="post" action="{% url 'project-management:project_pause' project.project_number %}" style="display: inline;">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-sm" title="暂停" style="color: var(--warning-color);">
+                                                    <i class="fas fa-pause"></i>
+                                                </button>
+                                            </form>
+                                        {% elif project.status == 'suspended' %}
+                                            <form method="post" action="{% url 'project-management:project_resume' project.project_number %}" style="display: inline;">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-sm" title="恢复" style="color: var(--success-color);">
+                                                    <i class="fas fa-play"></i>
+                                                </button>
+                                            </form>
+                                        {% endif %}
+                                        <form method="post" action="{% url 'project-management:project_cancel' project.project_number %}" style="display: inline;" onsubmit="return confirm('确定要取消这个项目吗？');">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm" title="取消" style="color: var(--error-color);">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-project-diagram"></i>
+                    <h3>暂无项目</h3>
+                    <p>还没有创建任何项目，点击上方按钮创建第一个项目</p>
+                    <a href="{% url 'project-create' %}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i>
+                        创建项目
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const statusFilter = document.getElementById('status-filter');
+        const sortFilter = document.getElementById('sort-filter');
+        const projectsTable = document.getElementById('projects-table');
+        const tableRows = projectsTable.querySelectorAll('tbody tr');
+
+        // 状态过滤
+        statusFilter.addEventListener('change', function() {
+            filterProjects();
+        });
+
+        // 排序
+        sortFilter.addEventListener('change', function() {
+            sortProjects(this.value);
+        });
+
+        function filterProjects() {
+            const selectedStatus = statusFilter.value;
+
+            tableRows.forEach(row => {
+                if (selectedStatus === '' || row.dataset.status === selectedStatus) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+
+        function sortProjects(sortBy) {
+            const rows = Array.from(tableRows);
+            const tbody = projectsTable.querySelector('tbody');
+
+            rows.sort((a, b) => {
+                let aVal, bVal;
+
+                switch(sortBy) {
+                    case 'created_date':
+                        aVal = a.querySelector('td:nth-child(10)').textContent;
+                        bVal = b.querySelector('td:nth-child(10)').textContent;
+                        break;
+                    case 'planned_end_date':
+                        aVal = a.querySelector('td:nth-child(10)').textContent;
+                        bVal = b.querySelector('td:nth-child(10)').textContent;
+                        break;
+                    case 'title':
+                        aVal = a.querySelector('td:nth-child(2)').textContent.trim();
+                        bVal = b.querySelector('td:nth-child(2)').textContent.trim();
+                        return aVal.localeCompare(bVal);
+                    default:
+                        return 0;
+                }
+
+                return aVal.localeCompare(bVal);
+            });
+
+            // 重新排列行
+            rows.forEach(row => tbody.appendChild(row));
+        }
+
+        // 行悬停效果
+        tableRows.forEach(row => {
+            row.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateX(4px)';
+                this.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+            });
+            row.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateX(0)';
+                this.style.boxShadow = '';
+            });
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,197 @@
+{% extends "webapp/unified_base.html" %}
+
+{% block title %}仪表板 - 项目管理系统{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <h1>
+        <i class="fas fa-tachometer-alt"></i>
+        系统概览
+    </h1>
+</div>
+
+<div class="content-body">
+    <!-- 统计卡片 -->
+    <div class="stats-grid" style="margin-bottom: 20px;">
+        <div class="stat-card primary">
+            <div class="stat-header">
+                <div class="stat-title">项目总数</div>
+                <i class="fas fa-project-diagram stat-icon"></i>
+            </div>
+            <div class="stat-value">{{ projects|length }}</div>
+            <div class="stat-description">所有项目数量</div>
+        </div>
+
+        <div class="stat-card success">
+            <div class="stat-header">
+                <div class="stat-title">已完成项目</div>
+                <i class="fas fa-check-circle stat-icon"></i>
+            </div>
+            <div class="stat-value">{{ completed_projects }}</div>
+            <div class="stat-description">已交付的项目</div>
+        </div>
+
+        <div class="stat-card warning">
+            <div class="stat-header">
+                <div class="stat-title">团队数量</div>
+                <i class="fas fa-users stat-icon"></i>
+            </div>
+            <div class="stat-value">{{ teams|length }}</div>
+            <div class="stat-description">活跃团队</div>
+        </div>
+
+        <div class="stat-card info">
+            <div class="stat-header">
+                <div class="stat-title">团队成员</div>
+                <i class="fas fa-user-friends stat-icon"></i>
+            </div>
+            <div class="stat-value">{{ team_members|length }}</div>
+            <div class="stat-description">系统用户总数</div>
+        </div>
+    </div>
+
+    <!-- 数据展示区域 -->
+    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px;">
+        <!-- 项目列表 -->
+        <div class="data-card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-project-diagram"></i>
+                    最新项目
+                </h3>
+                <a href="/projects/" class="btn btn-primary">
+                    查看全部
+                </a>
+            </div>
+            <div class="card-body">
+                {% if projects %}
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>项目编号</th>
+                                    <th>项目名称</th>
+                                    <th>状态</th>
+                                    <th>进度</th>
+                                    <th>截止日期</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for project in projects|slice:":5" %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'projectmanagement:project_info' project.project_number %}" class="text-primary text-decoration-none">
+                                            {{ project.project_number }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'projectmanagement:project_info' project.project_number %}" class="text-primary text-decoration-none">
+                                            {{ project.title }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <span class="status-badge planning">规划中</span>
+                                    </td>
+                                    <td>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <div style="flex: 1; height: 4px; background: #f0f0f0; border-radius: 2px; overflow: hidden;">
+                                                <div style="width: {{ project.get_project_progress|floatformat:0 }}%; height: 100%; background: var(--success-color);"></div>
+                                            </div>
+                                            <span style="font-size: 12px; font-weight: 500;">{{ project.get_project_progress|floatformat:0 }}%</span>
+                                        </div>
+                                    </td>
+                                    <td>{{ project.planned_end_date|default:"-" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-folder-open"></i>
+                        <h3>暂无项目数据</h3>
+                        <p>创建第一个项目开始使用项目管理系统</p>
+                        <a href="/projects/create/" class="btn btn-primary">
+                            <i class="fas fa-plus"></i>
+                            创建项目
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 团队成员 -->
+        <div class="data-card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-users"></i>
+                    团队成员
+                </h3>
+                <a href="/teams/" class="btn btn-primary btn-sm">
+                    <i class="fas fa-cog"></i>
+                    管理
+                </a>
+            </div>
+            <div class="card-body">
+                {% if team_members %}
+                    {% for member in team_members|slice:":5" %}
+                    <div style="display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid #f0f0f0;">
+                        <div style="width: 40px; height: 40px; border-radius: 50%; background: var(--primary-color); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600;">
+                            {{ member.user.username|slice:":2"|upper }}
+                        </div>
+                        <div style="flex: 1; margin-left: 12px;">
+                            <div style="font-weight: 500;">{{ member.user.username }}</div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">{{ member.role|default:"成员" }} @ {{ member.team.name|default:"未分组" }}</div>
+                        </div>
+                    </div>
+                {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-users"></i>
+                        <h3>暂无团队成员</h3>
+                        <p>还没有添加任何团队成员到团队中</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 快速操作 -->
+        <div class="data-card" style="margin-top: 20px;">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-bolt"></i>
+                    快速操作
+                </h3>
+            </div>
+            <div class="card-body">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                    <a href="/projects/create/" class="btn" style="padding: 16px; text-align: center; background: white; border: 1px solid var(--border-color);">
+                        <i class="fas fa-plus" style="font-size: 24px; color: var(--primary-color); margin-bottom: 8px;"></i>
+                        <div style="font-weight: 500;">创建新项目</div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">开始一个新的项目</div>
+                    </a>
+
+                    <a href="/projects/" class="btn" style="padding: 16px; text-align: center; background: white; border: 1px solid var(--border-color);">
+                        <i class="fas fa-list" style="font-size: 24px; color: var(--success-color); margin-bottom: 8px;"></i>
+                        <div style="font-weight: 500;">查看所有项目</div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">管理现有项目</div>
+                    </a>
+
+                    <a href="/teams/" class="btn" style="padding: 16px; text-align: center; background: white; border: 1px solid var(--border-color);">
+                        <i class="fas fa-users-cog" style="font-size: 24px; color: var(--warning-color); margin-bottom: 8px;"></i>
+                        <div style="font-weight: 500;">管理团队</div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">组织团队成员</div>
+                    </a>
+
+                    <a href="http://localhost:3000" class="btn" style="padding: 16px; text-align: center; background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); color: white; border: none;" target="_blank">
+                        <i class="fas fa-users" style="font-size: 24px; margin-bottom: 8px;"></i>
+                        <div style="font-weight: 500;">实时协作</div>
+                        <div style="font-size: 12px; opacity: 0.8; margin-top: 4px;">多人协作编辑</div>
+                        <i class="fas fa-external-link-alt" style="font-size: 12px; margin-left: 4px;"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

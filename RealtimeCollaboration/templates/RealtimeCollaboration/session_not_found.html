@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block title %}会话未找到{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0"><i class="fas fa-exclamation-triangle"></i> 会话未找到</h5>
+                </div>
+                <div class="card-body text-center">
+                    <i class="fas fa-search fa-5x text-muted mb-4"></i>
+                    <h4>会话不存在</h4>
+                    <p class="text-muted">会话ID: <code>{{ session_id }}</code></p>
+                    <p>该会话可能已被删除或从未创建。</p>
+                    <a href="{% url 'collaboration:home' %}" class="btn btn-primary mt-3">
+                        <i class="fas fa-home"></i> 返回首页
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

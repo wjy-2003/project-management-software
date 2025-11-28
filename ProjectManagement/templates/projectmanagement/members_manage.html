@@ -1,0 +1,245 @@
+{% extends 'webapp/unified_base.html' %}
+{% load static %}
+
+{% block title %}管理项目成员 - {{ project.title }}{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <h1>
+        <i class="fas fa-users"></i>
+        管理项目成员
+    </h1>
+    <div>
+        <a href="{% url 'projectmanagement:project_info' project.project_number %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i>
+            返回项目
+        </a>
+    </div>
+</div>
+
+<div class="content-body">
+    {% if messages %}
+    <div style="margin-bottom: 16px;">
+        {% for message in messages %}
+        <div style="padding: 12px 16px; border-radius: 6px; margin-bottom: 8px; background: {% if message.tags == 'error' %}#fff1f0; border: 1px solid #ffccc7; color: #f5222d{% elif message.tags == 'warning' %}#fff7e6; border: 1px solid #ffd591; color: #faad14{% elif message.tags == 'success' %}#f6ffed; border: 1px solid #b7eb8f; color: #52c41a{% else %}#e6f7ff; border: 1px solid #91d5ff; color: #1890ff{% endif %}; display: flex; align-items: center; justify-content: space-between;">
+            <span>{{ message }}</span>
+            <button onclick="this.parentElement.style.display='none'" style="background: none; border: none; font-size: 16px; cursor: pointer;">×</button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- 项目信息概览 -->
+    <div class="data-card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-project-diagram"></i>
+                当前项目
+            </h3>
+        </div>
+        <div class="card-body">
+            <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+                <div>
+                    <strong style="color: var(--primary-color);">{{ project.title }}</strong>
+                    <div style="font-size: 14px; color: var(--text-secondary); margin-top: 4px;">
+                        项目编号: <code>{{ project.project_number }}</code>
+                    </div>
+                </div>
+                <div style="margin-left: auto;">
+                    <span class="status-badge {{ project.status }}">
+                        {{ project.get_status_display }}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 团队成员管理 -->
+    <div class="data-card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-users-cog"></i>
+                选择团队添加成员
+            </h3>
+            <button type="button" class="btn btn-primary" id="saveBtn">
+                <i class="fas fa-save"></i>
+                保存
+            </button>
+        </div>
+        <div class="card-body">
+            {% if teams %}
+                <div style="padding: 16px; background: #f0f7ff; border-radius: 6px; margin-bottom: 20px; border-left: 4px solid #1890ff;">
+                    <i class="fas fa-info-circle" style="color: #1890ff; margin-right: 8px;"></i>
+                    勾选团队后点击"保存"按钮，将该团队的所有成员添加到项目中
+                </div>
+
+                <div id="teamTree">
+                    {% for team in teams %}
+                    <div class="team-item" data-team-id="{{ team.id }}" style="margin-bottom: 16px; border: 1px solid #d9d9d9; border-radius: 8px; background: #fafafa;">
+                        <div class="team-header" style="display: flex; align-items: center; padding: 16px; cursor: pointer; user-select: none;">
+                            <i class="fas fa-chevron-right toggle-icon" style="width: 20px; margin-right: 12px; transition: transform 0.2s; color: #666;"></i>
+                            <input type="checkbox" class="form-check-input team-checkbox" value="{{ team.id }}" style="margin-right: 12px;">
+                            <span class="team-name" style="font-weight: 600; color: var(--primary-color); flex: 1;">
+                                <i class="fas fa-users" style="margin-right: 8px;"></i>
+                                {{ team.name }}
+                            </span>
+                            <span class="badge-team" style="background: #e6f7ff; color: #1890ff; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
+                                {{ team.members.count }} 名成员
+                            </span>
+                        </div>
+
+                        <div class="member-list" style="display: none; border-top: 1px solid #e8e8e8; background: white;">
+                            {% for member in team.members.all %}
+                            <div class="member-item" style="display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">
+                                <div class="member-info" style="flex: 1;">
+                                    <span class="member-name" style="font-weight: 500; color: #262626;">
+                                        <i class="fas fa-user" style="margin-right: 8px; color: #666;"></i>
+                                        {{ member.user.username }}
+                                    </span>
+                                    <span class="member-role" style="font-size: 13px; color: #8c8c8c; margin-left: 12px;">
+                                        <i class="fas fa-id-badge" style="margin-right: 4px;"></i>
+                                        {{ member.role.name }}
+                                    </span>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div class="member-item" style="padding: 16px; color: #8c8c8c; text-align: center; border-bottom: 1px solid #f0f0f0;">
+                                该团队暂无成员
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state" style="text-align: center; padding: 60px 20px;">
+                    <i class="fas fa-users" style="font-size: 48px; color: #d9d9d9; margin-bottom: 16px;"></i>
+                    <h3 style="color: #262626; margin-bottom: 8px;">暂无团队</h3>
+                    <p style="color: #8c8c8c; margin-bottom: 20px;">请先创建团队再添加项目成员</p>
+                    <a href="{% url 'teammanagement:team_create' %}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i>
+                        创建团队
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 页面加载动画
+        const teamItems = document.querySelectorAll('.team-item');
+        teamItems.forEach((item, index) => {
+            item.style.opacity = '0';
+            item.style.transform = 'translateY(20px)';
+            setTimeout(() => {
+                item.style.transition = 'all 0.5s ease';
+                item.style.opacity = '1';
+                item.style.transform = 'translateY(0)';
+            }, index * 100);
+        });
+
+        // 获取CSRF token
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        const csrftoken = getCookie('csrftoken');
+
+        // 团队折叠/展开功能
+        document.querySelectorAll('.team-header').forEach(header => {
+            header.addEventListener('click', function(e) {
+                // 如果点击的是复选框，不执行展开/折叠
+                if (e.target.classList.contains('team-checkbox')) {
+                    return;
+                }
+
+                const teamItem = this.closest('.team-item');
+                const memberList = teamItem.querySelector('.member-list');
+                const toggleIcon = teamItem.querySelector('.toggle-icon');
+
+                if (memberList.style.display === 'none' || memberList.style.display === '') {
+                    memberList.style.display = 'block';
+                    toggleIcon.style.transform = 'rotate(90deg)';
+                } else {
+                    memberList.style.display = 'none';
+                    toggleIcon.style.transform = 'rotate(0deg)';
+                }
+            });
+        });
+
+        // 团队项目悬停效果
+        document.querySelectorAll('.team-item').forEach(item => {
+            item.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateX(4px)';
+                this.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+            });
+            item.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateX(0)';
+                this.style.boxShadow = 'none';
+            });
+        });
+
+        // 保存按钮点击事件
+        document.getElementById('saveBtn').addEventListener('click', function() {
+            const selectedTeamIds = [];
+            document.querySelectorAll('.team-checkbox:checked').forEach(checkbox => {
+                selectedTeamIds.push(parseInt(checkbox.value));
+            });
+
+            if (selectedTeamIds.length === 0) {
+                alert('请至少选择一个团队');
+                return;
+            }
+
+            // 禁用按钮防止重复提交
+            this.disabled = true;
+            const originalText = this.innerHTML;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
+
+            // 发送AJAX请求
+            fetch(window.location.href, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                },
+                body: JSON.stringify({
+                    team_ids: selectedTeamIds
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    window.location.href = "{% url 'projectmanagement:project_info' project.project_number %}";
+                } else {
+                    alert('错误: ' + data.message);
+                    this.disabled = false;
+                    this.innerHTML = originalText;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('添加成员时发生错误');
+                this.disabled = false;
+                this.innerHTML = originalText;
+            });
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends 'webapp/unified_base.html' %}
+
+{% block title %}项目管理系统{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ProjectManagement specific styles that complement unified_base */
+    .project-header {
+        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        color: white;
+        padding: 2rem;
+        margin: -2rem -2rem 0;
+        border-radius: 8px;
+        text-align: center;
+    }
+
+    .project-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin: 2rem 0;
+    }
+
+    .project-stat-card {
+        background: white;
+        border-radius: 8px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transition: transform 0.2s;
+    }
+
+    .project-stat-card:hover {
+        transform: translateY(-2px);
+    }
+
+    .breadcrumb {
+        background: #f8f9fa;
+        padding: 1rem 2rem;
+        border-radius: 4px;
+        margin-bottom: 2rem;
+    }
+
+    .progress-container {
+        background: #e9ecef;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="content-body">
+    {% block project_content %}
+    <!-- ProjectManagement content will go here -->
+    {% endblock %}
+</div>
+{% endblock %}

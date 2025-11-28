@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -26,21 +27,29 @@ SECRET_KEY = "django-insecure \
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["localhost", "0.0.0.0", "127.0.0.1"]
+ALLOWED_HOSTS = ["localhost", "0.0.0.0", "127.0.0.1", "*"]
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    "daphne",  # Channels ASGI server
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "channels",  # Django Channels
+    "corsheaders",  # cors
+    "RealtimeCollaboration",  # rc
+    "GitIntegration",
+    "ProjectManagement",
+    "TeamManagement",
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -50,12 +59,14 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
+CORS_ALLOW_ALL_ORIGINS = True
+
 ROOT_URLCONF = "webapp.urls"
 
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -68,6 +79,11 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "webapp.wsgi.application"
+ASGI_APPLICATION = "webapp.asgi.application"
+
+CHANNEL_LAYERS = {
+    "default": {"BACKEND": "channels.layers.InMemoryChannelLayer"},
+}
 
 
 # Database
@@ -84,25 +100,21 @@ DATABASES = {
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
+
 AUTH_PASSWORD_VALIDATORS = [
     {
-        "NAME": "django.contrib.auth. \
-            password_validation.UserAttributeSimilarityValidator",
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
     },
     {
-        "NAME": "django.contrib.auth. \
-            password_validation.MinimumLengthValidator",
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
     },
     {
-        "NAME": "django.contrib.auth. \
-            password_validation.CommonPasswordValidator",
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
     },
     {
-        "NAME": "django.contrib.auth. \
-            password_validation.NumericPasswordValidator",
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
-
 # AUTH_USER_MODEL = "accounts.User"
 
 
@@ -121,9 +133,52 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
+STATICFILES_DIRS = [
+    BASE_DIR / "webapp" / "static",
+]
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# Media files
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
+# Media files (Uploaded files)
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
+# Git Integration Security Settings
+# https://docs.djangoproject.com/en/5.2/topics/settings/
+
+# Default path for git repositories (can be overridden by environment variable)
+DEFAULT_GIT_REPOSITORY_PATH = Path(
+    os.environ.get("DEFAULT_GIT_REPOSITORY_PATH", str(BASE_DIR))
+)
+
+# Allowed base directories for git repositories (security measure)
+# Users can only set git paths within these directories
+ALLOWED_GIT_REPOSITORY_BASES = [
+    BASE_DIR,  # Project root directory
+    # Additional allowed bases can be configured via environment variable
+    *[
+        Path(p.strip())
+        for p in os.environ.get("ALLOWED_GIT_REPOSITORY_BASES", "").split(",")
+        if p.strip()
+    ],
+]
+
+# Maximum number of git operations per hour (rate limiting)
+GIT_OPERATIONS_RATE_LIMIT = 100
+
+# Enable logging for git operations
+GIT_OPERATION_LOGGING = True
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# Login and authentication settings
+LOGIN_URL = "/login/"
+LOGIN_REDIRECT_URL = "/projects/"
+LOGOUT_REDIRECT_URL = "/login/"

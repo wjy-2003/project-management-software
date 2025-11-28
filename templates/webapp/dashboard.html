@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+
+{% block title %}仪表板 - 项目管理系统{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="h3 mb-4">
+                <i class="fas fa-tachometer-alt"></i> 系统仪表板
+            </h1>
+        </div>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                总项目数
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ projects.count }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-project-diagram fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                已完成项目
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ completed_projects }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">团队数</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ teams.count }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-users fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                团队成员
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ team_members.count }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-user-friends fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 项目列表 -->
+    <div class="row">
+        <div class="col-lg-8 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">最新项目</h6>
+                    <a href="{% url 'projectmanagement:project_list' %}" class="btn btn-sm btn-primary">
+                        查看全部
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if projects %}
+                        <div class="table-responsive">
+                            <table class="table table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>项目编号</th>
+                                        <th>项目名称</th>
+                                        <th>状态</th>
+                                        <th>进度</th>
+                                        <th>截止日期</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for project in projects|slice:":5" %}
+                                    <tr>
+                                        <td>{{ project.project_number }}</td>
+                                        <td>
+                                            <a href="#" class="text-decoration-none">
+                                                {{ project.title }}
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-{{ project.status_class }}">
+                                                {{ project.status_label }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="progress" style="height: 20px;">
+                                                <div class="progress-bar" role="progressbar"
+                                                     style="width: {{ project.get_project_progress|floatformat:0 }}%"
+                                                     aria-valuenow="{{ project.get_project_progress|floatformat:0 }}"
+                                                     aria-valuemin="0" aria-valuemax="100">
+                                                    {{ project.get_project_progress|floatformat:0 }}%
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>{{ project.planned_end_date|default:"-" }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-inbox fa-3x text-gray-300 mb-3"></i>
+                            <p class="text-muted">暂无项目数据</p>
+                            <a href="{% url 'projectmanagement:project_create' %}" class="btn btn-primary">
+                                创建第一个项目
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 团队成员 -->
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">团队成员</h6>
+                    <a href="{% url 'TeamManagement:team-list' %}" class="btn btn-sm btn-primary">
+                        管理
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if team_members %}
+                        {% for member in team_members|slice:":5" %}
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-user-circle fa-2x text-gray-400"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <div class="fw-bold">{{ member.user.username }}</div>
+                                <div class="small text-muted">{{ member.role }} @ {{ member.team.name }}</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-users fa-3x text-gray-300 mb-3"></i>
+                            <p class="text-muted">暂无团队成员</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .border-left-primary {
+        border-left: 0.25rem solid #4e73df !important;
+    }
+    .border-left-success {
+        border-left: 0.25rem solid #1cc88a !important;
+    }
+    .border-left-info {
+        border-left: 0.25rem solid #36b9cc !important;
+    }
+    .border-left-warning {
+        border-left: 0.25rem solid #f6c23e !important;
+    }
+    .text-xs {
+        font-size: 0.7rem;
+    }
+    .card-body {
+        padding: 1.5rem;
+    }
+</style>
+{% endblock %}
