@@ -2,6 +2,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 
+
 class Permission(models.Model):
     code = models.CharField(max_length=64, unique=True)
     label = models.CharField(max_length=128)
@@ -50,7 +51,11 @@ class Team(models.Model):
 
 class TeamMember(models.Model):
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="members")
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="team_memberships")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="team_memberships",
+    )
     role = models.ForeignKey(Role, on_delete=models.PROTECT, related_name="members")
     is_active = models.BooleanField(default=True)
     joined_at = models.DateTimeField(auto_now_add=True)
@@ -72,7 +77,9 @@ class ProjectAssignment(models.Model):
         TeamMember, on_delete=models.CASCADE, related_name="project_assignments"
     )
     project = models.ForeignKey(
-        "ProjectManagement.Project", on_delete=models.CASCADE, related_name="team_assignments"
+        "ProjectManagement.Project",
+        on_delete=models.CASCADE,
+        related_name="team_assignments",
     )
     assigned_at = models.DateTimeField(auto_now_add=True)
 
@@ -87,7 +94,9 @@ class TaskAssignment(models.Model):
         TeamMember, on_delete=models.CASCADE, related_name="task_assignments"
     )
     task = models.ForeignKey(
-        "ProjectManagement.Task", on_delete=models.CASCADE, related_name="team_assignments"
+        "ProjectManagement.Task",
+        on_delete=models.CASCADE,
+        related_name="team_assignments",
     )
     assigned_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

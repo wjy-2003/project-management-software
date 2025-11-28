@@ -1,133 +1,198 @@
-{% extends 'base.html' %}
+{% extends 'TeamManagement/base.html' %}
 
 {% block title %}{{ team.name }} - 团队详情{% endblock %}
 
-{% block content %}
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1><i class="fas fa-users"></i> {{ team.name }}</h1>
-            <p class="text-muted">{{ team.description|default:"暂无描述" }}</p>
-        </div>
-        <div>
-            <a href="{% url 'TeamManagement:team-member-list' team.pk %}" class="btn btn-info">
-                <i class="fas fa-users"></i> 成员管理
-            </a>
-            <a href="{% url 'TeamManagement:team-list' %}" class="btn btn-secondary">
-                <i class="fas fa-arrow-left"></i> 返回列表
-            </a>
-        </div>
+{% block team_content %}
+<div class="content-header">
+    <div>
+        <h1><i class="fas fa-users"></i> {{ team.name }}</h1>
+        <p class="text-secondary">{{ team.description|default:"暂无描述" }}</p>
     </div>
-
-    {% if messages %}
-    <div class="alert-container">
-        {% for message in messages %}
-        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-        {% endfor %}
+    <div>
+        <a href="{% url 'TeamManagement:team-member-list' team.pk %}" class="btn btn-primary">
+            <i class="fas fa-users"></i> 成员管理
+        </a>
+        <a href="{% url 'TeamManagement:team-list' %}" class="btn" style="margin-left: 8px;">
+            <i class="fas fa-arrow-left"></i> 返回列表
+        </a>
     </div>
-    {% endif %}
+</div>
 
-    <div class="row">
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> 团队信息</h5>
+{% if messages %}
+<div class="mb-3">
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }}" style="margin-bottom: 8px; padding: 12px 16px; border-radius: 6px;">
+        {{ message }}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- 统计卡片 -->
+<div class="stats-grid">
+    <div class="stat-card primary">
+        <div class="stat-header">
+            <div class="stat-title">团队成员</div>
+            <div class="stat-icon"><i class="fas fa-users"></i></div>
+        </div>
+        <div class="stat-value">{{ members|length }}</div>
+        <div class="stat-description">位活跃成员</div>
+    </div>
+    <div class="stat-card success">
+        <div class="stat-header">
+            <div class="stat-title">团队负责人</div>
+            <div class="stat-icon"><i class="fas fa-user-tie"></i></div>
+        </div>
+        <div class="stat-value">{{ team.owner.get_username|slice:":8" }}</div>
+        <div class="stat-description">{{ team.owner.get_full_name|default:"管理员" }}</div>
+    </div>
+    <div class="stat-card info">
+        <div class="stat-header">
+            <div class="stat-title">创建时间</div>
+            <div class="stat-icon"><i class="fas fa-calendar"></i></div>
+        </div>
+        <div class="stat-value">{{ team.created_at|date:"m-d" }}</div>
+        <div class="stat-description">{{ team.created_at|date:"Y年" }}</div>
+    </div>
+    <div class="stat-card warning">
+        <div class="stat-header">
+            <div class="stat-title">团队状态</div>
+            <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
+        </div>
+        <div class="stat-value">活跃</div>
+        <div class="stat-description">正常运作</div>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+    <!-- 团队信息 -->
+    <div class="data-card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-info-circle"></i>
+                团队信息
+            </h3>
+        </div>
+        <div class="card-body">
+            <div style="display: grid; gap: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f0f0f0;">
+                    <span style="font-weight: 500; color: var(--text-secondary);">团队名称</span>
+                    <span style="color: var(--text-color); font-weight: 500;">{{ team.name }}</span>
                 </div>
-                <div class="card-body">
-                    <table class="table table-borderless">
-                        <tbody>
-                            <tr>
-                                <th width="30%">团队名称:</th>
-                                <td>{{ team.name }}</td>
-                            </tr>
-                            <tr>
-                                <th>负责人:</th>
-                                <td>
-                                    <i class="fas fa-user"></i> {{ team.owner.get_username }}
-                                    {% if team.owner.get_full_name %}
-                                    <small class="text-muted">({{ team.owner.get_full_name }})</small>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            <tr>
-                                <th>创建时间:</th>
-                                <td>{{ team.created_at|date:"Y-m-d H:i" }}</td>
-                            </tr>
-                            <tr>
-                                <th>成员数量:</th>
-                                <td><span class="badge bg-info">{{ members|length }}</span></td>
-                            </tr>
-                            <tr>
-                                <th>描述:</th>
-                                <td>{{ team.description|default:"暂无描述" }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f0f0f0;">
+                    <span style="font-weight: 500; color: var(--text-secondary);">
+                        <i class="fas fa-user"></i> 负责人
+                    </span>
+                    <span style="color: var(--text-color); font-weight: 500;">
+                        {{ team.owner.get_username }}
+                        {% if team.owner.get_full_name %}
+                        <small style="color: var(--text-secondary);">({{ team.owner.get_full_name }})</small>
+                        {% endif %}
+                    </span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f0f0f0;">
+                    <span style="font-weight: 500; color: var(--text-secondary);">
+                        <i class="fas fa-calendar-plus"></i> 创建时间
+                    </span>
+                    <span style="color: var(--text-color);">{{ team.created_at|date:"Y-m-d H:i" }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f0f0f0;">
+                    <span style="font-weight: 500; color: var(--text-secondary);">
+                        <i class="fas fa-users"></i> 成员数量
+                    </span>
+                    <span class="status-badge" style="background: var(--primary-color); color: white;">
+                        {{ members|length }} 人
+                    </span>
+                </div>
+                <div style="padding: 12px 0;">
+                    <div style="font-weight: 500; color: var(--text-secondary); margin-bottom: 8px;">
+                        <i class="fas fa-align-left"></i> 描述
+                    </div>
+                    <div style="color: var(--text-color); line-height: 1.5;">
+                        {{ team.description|default:"暂无描述" }}
+                    </div>
                 </div>
             </div>
         </div>
+    </div>
 
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header bg-success text-white">
-                    <h5 class="mb-0"><i class="fas fa-users"></i> 团队成员概览</h5>
-                </div>
-                <div class="card-body">
-                    {% if members %}
-                    <div class="list-group list-group-flush">
-                        {% for member in members|slice:":5" %}
-                        <div class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                                <i class="fas fa-user"></i> {{ member.user.get_username }}
-                                {% if member.user.get_full_name %}
-                                <small class="text-muted">({{ member.user.get_full_name }})</small>
-                                {% endif %}
+    <!-- 团队成员概览 -->
+    <div class="data-card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-users"></i>
+                团队成员概览
+            </h3>
+            <a href="{% url 'TeamManagement:team-member-list' team.pk %}" class="btn btn-sm">
+                查看全部
+            </a>
+        </div>
+        <div class="card-body">
+            {% if members %}
+            <div style="display: grid; gap: 12px;">
+                {% for member in members|slice:":6" %}
+                <div style="border: 1px solid #f0f0f0; border-radius: 6px; padding: 12px; background: #fafafa;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                                <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--primary-color); color: white; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold;">
+                                    {{ member.user.get_username|first|upper }}
+                                </div>
+                                <strong style="font-size: 14px;">{{ member.user.get_username }}</strong>
                             </div>
-                            <span class="badge bg-info">{{ member.role }}</span>
+                            {% if member.user.get_full_name %}
+                            <div style="font-size: 12px; color: var(--text-secondary); margin-left: 40px;">
+                                {{ member.user.get_full_name }}
+                            </div>
+                            {% endif %}
                         </div>
-                        {% endfor %}
+                        <span class="status-badge" style="background: var(--success-color); color: white;">
+                            {{ member.role }}
+                        </span>
                     </div>
-                    {% if members|length > 5 %}
-                    <div class="text-center mt-3">
-                        <a href="{% url 'TeamManagement:team-member-list' team.pk %}" class="btn btn-sm btn-outline-primary">
-                            查看全部 {{ members|length }} 名成员
-                        </a>
-                    </div>
-                    {% endif %}
-                    {% else %}
-                    <div class="text-center py-3">
-                        <i class="fas fa-user-slash fa-2x text-muted mb-2"></i>
-                        <p class="text-muted mb-0">暂无团队成员</p>
-                    </div>
-                    {% endif %}
                 </div>
+                {% endfor %}
             </div>
+            {% if members|length > 6 %}
+            <div style="text-align: center; margin-top: 16px;">
+                <a href="{% url 'TeamManagement:team-member-list' team.pk %}" class="btn btn-sm">
+                    查看全部 {{ members|length }} 名成员
+                </a>
+            </div>
+            {% endif %}
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-user-slash"></i>
+                <h3>暂无团队成员</h3>
+                <p>还没有成员加入这个团队</p>
+                <a href="{% url 'TeamManagement:team-member-list' team.pk %}" class="btn btn-primary">
+                    <i class="fas fa-user-plus"></i> 添加成员
+                </a>
+            </div>
+            {% endif %}
         </div>
     </div>
+</div>
 
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header bg-warning text-dark">
-                    <h5 class="mb-0"><i class="fas fa-cogs"></i> 快捷操作</h5>
-                </div>
-                <div class="card-body">
-                    <div class="d-flex gap-2 flex-wrap">
-                        <a href="{% url 'TeamManagement:team-member-list' team.pk %}" class="btn btn-info">
-                            <i class="fas fa-users"></i> 管理成员
-                        </a>
-                        <a href="{% url 'TeamManagement:team-update' team.pk %}" class="btn btn-warning">
-                            <i class="fas fa-edit"></i> 编辑团队
-                        </a>
-                        <button class="btn btn-danger" onclick="confirmDelete()">
-                            <i class="fas fa-trash"></i> 删除团队
-                        </button>
-                    </div>
-                </div>
-            </div>
+<!-- 快捷操作 -->
+<div class="data-card" style="margin-top: 24px;">
+    <div class="card-header">
+        <h3 class="card-title">
+            <i class="fas fa-cogs"></i>
+            快捷操作
+        </h3>
+    </div>
+    <div class="card-body">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+            <a href="{% url 'TeamManagement:team-member-list' team.pk %}" class="btn btn-primary">
+                <i class="fas fa-users"></i> 管理成员
+            </a>
+            <a href="{% url 'TeamManagement:team-update' team.pk %}" class="btn" style="border-color: var(--warning-color); color: var(--warning-color);">
+                <i class="fas fa-edit"></i> 编辑团队
+            </a>
+            <button class="btn" style="border-color: var(--error-color); color: var(--error-color);" onclick="confirmDelete()">
+                <i class="fas fa-trash"></i> 删除团队
+            </button>
         </div>
     </div>
 </div>

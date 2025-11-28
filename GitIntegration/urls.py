@@ -5,6 +5,7 @@ from . import views
 app_name = "GitIntegration"
 
 urlpatterns = [
+    path("", views.git_graph, name="git_main"),
     path("graph/", views.git_graph, name="git_graph"),
     path("commit/", views.git_commit, name="git_commit"),
     path("conflicts/", views.git_conflicts, name="git_conflicts"),

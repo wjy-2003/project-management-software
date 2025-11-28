@@ -1,0 +1,69 @@
+{% extends 'webapp/unified_base.html' %}
+
+{% block title %}团队与用户管理{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* TeamManagement specific styles that complement unified_base */
+    .team-header {
+        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        color: white;
+        padding: 2rem;
+        margin: -2rem -2rem 0;
+        border-radius: 8px;
+        text-align: center;
+    }
+
+    .team-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin: 2rem 0;
+    }
+
+    .team-stat-card {
+        background: white;
+        border-radius: 8px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transition: transform 0.2s;
+    }
+
+    .team-stat-card:hover {
+        transform: translateY(-2px);
+    }
+
+    .member-list {
+        background: #f8f9fa;
+        border-radius: 4px;
+        max-height: 800px;
+        overflow-y: auto;
+    }
+
+    .user-card {
+        background: white;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .user-card:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .breadcrumb {
+        background: #f8f9fa;
+        padding: 1rem 2rem;
+        border-radius: 4px;
+        margin-bottom: 2rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="content-body">
+    {% block team_content %}
+    <!-- TeamManagement content will go here -->
+    {% endblock %}
+</div>
+{% endblock %}

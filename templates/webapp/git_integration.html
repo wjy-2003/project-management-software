@@ -1,0 +1,353 @@
+{% extends "base.html" %}
+
+{% block title %}Git集成 - 项目管理系统{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3">
+                    <i class="fab fa-git-alt"></i> Git集成管理
+                </h1>
+                <div>
+                    <button class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#setPathModal">
+                        <i class="fas fa-folder-open"></i> 设置仓库路径
+                    </button>
+                    <a href="/git/commit/" class="btn btn-primary">
+                        <i class="fas fa-code-commit"></i> 提交更改
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 当前仓库信息 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow border-left-primary">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h6 class="text-primary">当前Git仓库</h6>
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-folder text-primary me-2"></i>
+                                <span class="fw-bold" id="currentPath">{{ current_git_path|default:"未设置" }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-sm btn-outline-secondary" onclick="refreshGitStatus()">
+                                    <i class="fas fa-sync-alt"></i> 刷新状态
+                                </button>
+                                <button class="btn btn-sm btn-outline-info" onclick="openGitGraph()">
+                                    <i class="fas fa-project-diagram"></i> 查看图形
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Git操作区域 -->
+    <div class="row">
+        <!-- 左侧：文件状态 -->
+        <div class="col-lg-8 mb-4">
+            <!-- 暂存区 -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-success">待提交文件</h6>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-success" onclick="stageAll()">
+                            <i class="fas fa-plus"></i> 全部暂存
+                        </button>
+                        <button class="btn btn-outline-warning" onclick="unstageAll()">
+                            <i class="fas fa-minus"></i> 全部取消
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0" id="stagedFilesTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th width="40">
+                                        <input type="checkbox" class="form-check-input" id="selectAllStaged">
+                                    </th>
+                                    <th>文件路径</th>
+                                    <th>状态</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="4" class="text-center py-4 text-muted">
+                                        <i class="fas fa-spinner fa-spin"></i> 正在加载文件状态...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 未跟踪文件 -->
+            <div class="card shadow">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-warning">未跟踪文件</h6>
+                    <button class="btn btn-sm btn-outline-warning" onclick="stageAllUntracked()">
+                        <i class="fas fa-plus"></i> 全部添加
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0" id="untrackedFilesTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th width="40">
+                                        <input type="checkbox" class="form-check-input" id="selectAllUntracked">
+                                    </th>
+                                    <th>文件路径</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="3" class="text-center py-4 text-muted">
+                                        <i class="fas fa-spinner fa-spin"></i> 正在加载...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧：分支和提交历史 -->
+        <div class="col-lg-4">
+            <!-- 分支信息 -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-info">分支管理</h6>
+                    <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#branchModal">
+                        <i class="fas fa-code-branch"></i> 新建分支
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">当前分支</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="currentBranch" readonly value="main">
+                            <button class="btn btn-outline-secondary" onclick="refreshBranches()">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">切换分支</label>
+                        <select class="form-select" id="branchSelect" onchange="switchBranch()">
+                            <option value="">选择分支...</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 最近提交 -->
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">最近提交</h6>
+                </div>
+                <div class="card-body">
+                    <div id="recentCommits">
+                        <div class="text-center py-4 text-muted">
+                            <i class="fas fa-spinner fa-spin"></i> 正在加载提交历史...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 设置仓库路径模态框 -->
+<div class="modal fade" id="setPathModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">设置Git仓库路径</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="setGitPathForm">
+                    <div class="mb-3">
+                        <label for="gitPath" class="form-label">Git仓库路径</label>
+                        <input type="text" class="form-control" id="gitPath"
+                               placeholder="例如: C:/Users/username/project"
+                               value="{{ current_git_path|default:'' }}">
+                        <div class="form-text">请输入Git仓库的完整路径</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="setGitPath()">设置路径</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 创建分支模态框 -->
+<div class="modal fade" id="branchModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">创建新分支</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createBranchForm">
+                    <div class="mb-3">
+                        <label for="branchName" class="form-label">分支名称</label>
+                        <input type="text" class="form-control" id="branchName"
+                               placeholder="feature/new-feature">
+                    </div>
+                    <div class="mb-3">
+                        <label for="startPoint" class="form-label">起始点</label>
+                        <input type="text" class="form-control" id="startPoint"
+                               placeholder="main 或 commit hash" value="main">
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="switchToBranch" checked>
+                        <label class="form-check-label" for="switchToBranch">
+                            创建后立即切换到新分支
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="createBranch()">创建分支</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 获取Git状态
+function loadGitStatus() {
+    fetch('/git/api/status/')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateFilesTable(data.status);
+                document.getElementById('currentPath').textContent = data.status.path || '未知';
+            } else {
+                console.error('获取Git状态失败:', data.message);
+            }
+        })
+        .catch(error => console.error('Error:', error));
+}
+
+// 更新文件表格
+function updateFilesTable(status) {
+    // 更新暂存区文件
+    const stagedBody = document.querySelector('#stagedFilesTable tbody');
+    stagedBody.innerHTML = '';
+
+    if (status.staged && status.staged.length > 0) {
+        status.staged.forEach(file => {
+            stagedBody.innerHTML += `
+                <tr>
+                    <td><input type="checkbox" class="form-check-input" value="${file}"></td>
+                    <td><i class="fas fa-file text-success me-2"></i>${file}</td>
+                    <td><span class="badge bg-success">已暂存</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-warning" onclick="unstageFile('${file}')">
+                            <i class="fas fa-minus"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+    } else {
+        stagedBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">暂无已暂存文件</td></tr>';
+    }
+
+    // 更新未跟踪文件
+    const untrackedBody = document.querySelector('#untrackedFilesTable tbody');
+    untrackedBody.innerHTML = '';
+
+    if (status.untracked && status.untracked.length > 0) {
+        status.untracked.forEach(file => {
+            untrackedBody.innerHTML += `
+                <tr>
+                    <td><input type="checkbox" class="form-check-input" value="${file}"></td>
+                    <td><i class="fas fa-file text-warning me-2"></i>${file}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-success" onclick="stageFile('${file}')">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+    } else {
+        untrackedBody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">暂无未跟踪文件</td></tr>';
+    }
+}
+
+// 设置Git路径
+function setGitPath() {
+    const path = document.getElementById('gitPath').value;
+    fetch('/git/api/set_path/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({ git_path: path })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('路径设置成功');
+            location.reload();
+        } else {
+            alert('设置失败: ' + data.message);
+        }
+    });
+}
+
+// 获取CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// 页面加载时获取状态
+document.addEventListener('DOMContentLoaded', loadGitStatus);
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .border-left-primary {
+        border-left: 0.25rem solid #4e73df !important;
+    }
+</style>
+{% endblock %}

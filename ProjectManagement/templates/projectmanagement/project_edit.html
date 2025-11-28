@@ -1,148 +1,236 @@
-{% extends 'base.html' %}
+{% extends 'webapp/unified_base.html' %}
 
 {% block title %}编辑项目 - {{ project.title }}{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <!-- 面包屑导航 -->
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{% url 'projectmanagement:project_list' %}">项目列表</a></li>
-            <li class="breadcrumb-item"><a href="{% url 'projectmanagement:project_info' project.project_number %}">{{ project.title }}</a></li>
-            <li class="breadcrumb-item active">编辑</li>
-        </ol>
-    </nav>
+<div class="content-header">
+    <h1>
+        <i class="fas fa-edit"></i>
+        编辑项目
+    </h1>
+    <div>
+        <a href="{% url 'projectmanagement:project_info' project.project_number %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i>
+            返回项目
+        </a>
+    </div>
+</div>
 
-    <div class="row">
-        <div class="col-md-10 offset-md-1">
-            <!-- 页面标题 -->
-            <div class="d-flex justify-content-between align-items-center mb-4">
+<div class="content-body">
+    {% if messages %}
+    <div style="margin-bottom: 16px;">
+        {% for message in messages %}
+        <div style="padding: 12px 16px; border-radius: 6px; margin-bottom: 8px; background: {% if message.tags == 'error' %}#fff1f0; border: 1px solid #ffccc7; color: #f5222d{% elif message.tags == 'warning' %}#fff7e6; border: 1px solid #ffd591; color: #faad14{% elif message.tags == 'success' %}#f6ffed; border: 1px solid #b7eb8f; color: #52c41a{% else %}#e6f7ff; border: 1px solid #91d5ff; color: #1890ff{% endif %}; display: flex; align-items: center; justify-content: space-between;">
+            <span>{{ message }}</span>
+            <button onclick="this.parentElement.style.display='none'" style="background: none; border: none; font-size: 16px; cursor: pointer;">×</button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- 项目信息概览 -->
+    <div class="data-card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-project-diagram"></i>
+                当前项目
+            </h3>
+        </div>
+        <div class="card-body">
+            <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
                 <div>
-                    <h1><i class="fas fa-edit"></i> 编辑项目</h1>
-                    <p class="text-muted">{{ project.title }} (<code>{{ project.project_number }}</code>)</p>
+                    <strong style="color: var(--primary-color);">{{ project.title }}</strong>
+                    <div style="font-size: 14px; color: var(--text-secondary); margin-top: 4px;">
+                        项目编号: <code>{{ project.project_number }}</code>
+                    </div>
                 </div>
-                <a href="{% url 'projectmanagement:project_info' project.project_number %}"
-                   class="btn btn-secondary">
-                    <i class="fas fa-arrow-left"></i> 返回项目
-                </a>
+                <div style="margin-left: auto;">
+                    <span class="status-badge {{ project.status }}">
+                        {{ project.get_status_display }}
+                    </span>
+                </div>
             </div>
-
-            {% if messages %}
-            <div class="alert-container">
-                {% for message in messages %}
-                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-                {% endfor %}
-            </div>
-            {% endif %}
-
-            <form method="post">
-                {% csrf_token %}
-
-                <div class="card mb-4">
-                    <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0"><i class="fas fa-info-circle"></i> 基本信息</h5>
-                    </div>
-                    <div class="card-body">
-                        {% for field in form %}
-                            {% if field.name in 'project_number,title,description,status' %}
-                            <div class="mb-3">
-                                <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-                                {{ field }}
-                                {% if field.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {{ field.errors }}
-                                    </div>
-                                {% endif %}
-                                {% if field.help_text %}
-                                    <div class="form-text">{{ field.help_text }}</div>
-                                {% endif %}
-                            </div>
-                            {% endif %}
-                        {% endfor %}
-                    </div>
-                </div>
-
-                <div class="card mb-4">
-                    <div class="card-header bg-info text-white">
-                        <h5 class="mb-0"><i class="far fa-calendar-alt"></i> 时间安排</h5>
-                    </div>
-                    <div class="card-body">
-                        {% for field in form %}
-                            {% if field.name in 'planned_start_date,planned_end_date,actual_start_date,actual_end_date' %}
-                            <div class="mb-3">
-                                <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-                                {{ field }}
-                                {% if field.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {{ field.errors }}
-                                    </div>
-                                {% endif %}
-                            </div>
-                            {% endif %}
-                        {% endfor %}
-                    </div>
-                </div>
-
-                <div class="card mb-4">
-                    <div class="card-header bg-success text-white">
-                        <h5 class="mb-0"><i class="far fa-clock"></i> 工时信息</h5>
-                    </div>
-                    <div class="card-body">
-                        {% for field in form %}
-                            {% if field.name in 'estimated_hours,consumed_hours,remaining_hours,available_workdays,available_hours' %}
-                            <div class="mb-3">
-                                <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-                                {{ field }}
-                                {% if field.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {{ field.errors }}
-                                    </div>
-                                {% endif %}
-                            </div>
-                            {% endif %}
-                        {% endfor %}
-                    </div>
-                </div>
-
-                <hr>
-                <div class="d-flex justify-content-end gap-2 mt-4">
-                    <a href="{% url 'projectmanagement:project_info' project.project_number %}"
-                       class="btn btn-secondary">
-                        <i class="fas fa-times"></i> 取消
-                    </a>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save"></i> 保存更改
-                    </button>
-                </div>
-            </form>
         </div>
     </div>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <!-- 基本信息卡片 -->
+        <div class="data-card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-info-circle"></i>
+                    基本信息
+                </h3>
+            </div>
+            <div class="card-body">
+                {% for field in form %}
+                    {% if field.name in 'project_number,title,description,status' %}
+                    <div style="margin-bottom: 20px;">
+                        <label for="{{ field.id_for_label }}" style="display: block; font-weight: 500; margin-bottom: 8px; color: #262626;">
+                            {{ field.label }}
+                            {% if field.field.required %}<span style="color: #f5222d;">*</span>{% endif %}
+                        </label>
+                        {{ field }}
+                        {% if field.errors %}
+                            <div style="color: #f5222d; font-size: 14px; margin-top: 4px;">
+                                {{ field.errors }}
+                            </div>
+                        {% endif %}
+                        {% if field.help_text %}
+                            <div style="font-size: 13px; color: #8c8c8c; margin-top: 4px;">{{ field.help_text }}</div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- 时间安排卡片 -->
+        <div class="data-card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="far fa-calendar-alt"></i>
+                    时间安排
+                </h3>
+            </div>
+            <div class="card-body">
+                {% for field in form %}
+                    {% if field.name in 'planned_start_date,planned_end_date,actual_start_date,actual_end_date' %}
+                    <div style="margin-bottom: 20px;">
+                        <label for="{{ field.id_for_label }}" style="display: block; font-weight: 500; margin-bottom: 8px; color: #262626;">
+                            {{ field.label }}
+                            {% if field.field.required %}<span style="color: #f5222d;">*</span>{% endif %}
+                        </label>
+                        {{ field }}
+                        {% if field.errors %}
+                            <div style="color: #f5222d; font-size: 14px; margin-top: 4px;">
+                                {{ field.errors }}
+                            </div>
+                        {% endif %}
+                        {% if field.help_text %}
+                            <div style="font-size: 13px; color: #8c8c8c; margin-top: 4px;">{{ field.help_text }}</div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- 工时信息卡片 -->
+        <div class="data-card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="far fa-clock"></i>
+                    工时信息
+                </h3>
+            </div>
+            <div class="card-body">
+                {% for field in form %}
+                    {% if field.name in 'estimated_hours,consumed_hours,remaining_hours,available_workdays,available_hours' %}
+                    <div style="margin-bottom: 20px;">
+                        <label for="{{ field.id_for_label }}" style="display: block; font-weight: 500; margin-bottom: 8px; color: #262626;">
+                            {{ field.label }}
+                            {% if field.field.required %}<span style="color: #f5222d;">*</span>{% endif %}
+                        </label>
+                        {{ field }}
+                        {% if field.errors %}
+                            <div style="color: #f5222d; font-size: 14px; margin-top: 4px;">
+                                {{ field.errors }}
+                            </div>
+                        {% endif %}
+                        {% if field.help_text %}
+                            <div style="font-size: 13px; color: #8c8c8c; margin-top: 4px;">{{ field.help_text }}</div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 32px; padding-top: 20px; border-top: 1px solid #e8e8e8;">
+            <a href="{% url 'projectmanagement:project_info' project.project_number %}"
+               class="btn btn-secondary">
+                <i class="fas fa-times"></i>
+                取消
+            </a>
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save"></i>
+                保存更改
+            </button>
+        </div>
+    </form>
 </div>
 {% endblock %}
 
-{% block extra_css %}
-<style>
-    /* 美化表单控件 */
-    .form-control {
-        margin-bottom: 0.5rem;
-    }
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 页面加载动画
+        const cards = document.querySelectorAll('.data-card');
+        cards.forEach((card, index) => {
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(20px)';
+            setTimeout(() => {
+                card.style.transition = 'all 0.5s ease';
+                card.style.opacity = '1';
+                card.style.transform = 'translateY(0)';
+            }, index * 100);
+        });
 
-    /* 美化多选框 */
-    select[multiple] {
-        height: 150px !important;
-    }
+        // 为所有表单控件添加样式
+        document.querySelectorAll('input[type=text], input[type=number], input[type=date], input[type=datetime-local], textarea, select').forEach(function(element) {
+            if (!element.classList.contains('form-control') && !element.classList.contains('form-select')) {
+                if (element.tagName === 'SELECT') {
+                    element.classList.add('form-select');
+                } else {
+                    element.classList.add('form-control');
+                }
+            }
 
-    /* 自定义卡片样式 */
-    .card {
-        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-    }
+            // 添加焦点效果
+            element.addEventListener('focus', function() {
+                this.style.boxShadow = '0 0 0 2px rgba(24, 144, 255, 0.2)';
+                this.style.borderColor = '#1890ff';
+            });
 
-    .card-header {
-        background-color: #f8f9fa;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.125);
-    }
-</style>
+            element.addEventListener('blur', function() {
+                this.style.boxShadow = 'none';
+                this.style.borderColor = '#d9d9d9';
+            });
+        });
+
+        // 为必填字段添加视觉标识
+        document.querySelectorAll('input[required], textarea[required], select[required]').forEach(function(element) {
+            const label = document.querySelector(`label[for="${element.id}"]`);
+            if (label && !label.querySelector('.required-star')) {
+                const star = document.createElement('span');
+                star.className = 'required-star';
+                star.textContent = '*';
+                star.style.color = '#f5222d';
+                star.style.marginLeft = '4px';
+                label.appendChild(star);
+            }
+        });
+
+        // 表单提交动画
+        const form = document.querySelector('form');
+        form.addEventListener('submit', function() {
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
+
+            // 如果验证失败，恢复按钮状态
+            setTimeout(() => {
+                if (submitBtn.disabled) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                }
+            }, 5000);
+        });
+    });
+</script>
 {% endblock %}

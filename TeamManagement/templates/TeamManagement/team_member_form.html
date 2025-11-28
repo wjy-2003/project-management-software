@@ -1,67 +1,62 @@
-{% extends 'base.html' %}
+{% extends 'TeamManagement/base.html' %}
 
 {% block title %}{% if action == 'update' %}编辑团队成员{% else %}添加团队成员{% endif %} - {{ team.name }}{% endblock %}
 
-{% block content %}
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1>
-                <i class="fas {% if action == 'update' %}fa-user-edit{% else %}fa-user-plus{% endif %}"></i>
-                {% if action == 'update' %}编辑团队成员{% else %}添加团队成员{% endif %}
-            </h1>
-            <p class="text-muted">团队: {{ team.name }}</p>
-        </div>
-        <div>
-            <a href="{% url 'TeamManagement:team-member-list' team.pk %}" class="btn btn-secondary">
-                <i class="fas fa-arrow-left"></i> 返回成员列表
-            </a>
-        </div>
+{% block team_content %}
+<div class="content-header">
+    <div>
+        <h1>
+            <i class="fas {% if action == 'update' %}fa-user-edit{% else %}fa-user-plus{% endif %}"></i>
+            {% if action == 'update' %}编辑团队成员{% else %}添加团队成员{% endif %}
+        </h1>
+        <div class="text-secondary">团队: {{ team.name }}</div>
     </div>
+    <div>
+        <a href="{% url 'TeamManagement:team-member-list' team.pk %}" class="btn">
+            <i class="fas fa-arrow-left"></i> 返回成员列表
+        </a>
+    </div>
+</div>
 
+<div class="content-body">
     {% if messages %}
-    <div class="alert-container">
-        {% for message in messages %}
-        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-        {% endfor %}
+    {% for message in messages %}
+    <div class="stat-card {% if message.tags == 'error' %}warning{% elif message.tags == 'success' %}success{% else %}info{% endif %}" style="margin-bottom: 16px;">
+        {{ message }}
     </div>
+    {% endfor %}
     {% endif %}
 
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">
-                        <i class="fas fa-clipboard-list"></i>
-                        成员信息表单
-                    </h5>
-                </div>
-                <div class="card-body">
+    <div class="data-card">
+        <div class="card-header">
+            <div class="card-title">
+                <i class="fas fa-clipboard-list"></i>
+                成员信息表单
+            </div>
+        </div>
+        <div class="card-body">
                     <form method="post" novalidate>
                         {% csrf_token %}
 
                         {% if form.non_field_errors %}
-                        <div class="alert alert-danger">
+                        <div class="stat-card warning" style="margin-bottom: 16px;">
                             {{ form.non_field_errors }}
                         </div>
                         {% endif %}
 
                         {% for field in form %}
-                        <div class="mb-3">
-                            <label for="{{ field.id_for_label }}" class="form-label">
+                        <div style="margin-bottom: 24px;">
+                            <label for="{{ field.id_for_label }}" style="display: block; margin-bottom: 8px; font-weight: 500;">
                                 {{ field.label }}
                                 {% if field.field.required %}
-                                <span class="text-danger">*</span>
+                                <span class="text-error">*</span>
                                 {% endif %}
                             </label>
 
                             {% if field.name == 'user' %}
                             <select name="{{ field.name }}"
                                     id="{{ field.id_for_label }}"
-                                    class="form-select {% if field.errors %}is-invalid{% endif %}"
+                                    style="width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; {% if field.errors %}border-color: var(--error-color);{% endif %}"
                                     {% if field.field.required %}required{% endif %}
                                     {% if action == 'update' %}disabled{% endif %}>
                                 <option value="">请选择用户</option>
@@ -74,12 +69,12 @@
                                 {% endfor %}
                             </select>
                             {% if action == 'update' %}
-                            <div class="form-text">编辑时不能更改成员用户</div>
+                            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">编辑时不能更改成员用户</div>
                             {% endif %}
                             {% elif field.name == 'role' %}
                             <select name="{{ field.name }}"
                                     id="{{ field.id_for_label }}"
-                                    class="form-select {% if field.errors %}is-invalid{% endif %}"
+                                    style="width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; {% if field.errors %}border-color: var(--error-color);{% endif %}"
                                     {% if field.field.required %}required{% endif %}>
                                 <option value="">请选择角色</option>
                                 {% for choice_value, choice_label in field.field.choices %}
@@ -91,13 +86,13 @@
                                 {% endfor %}
                             </select>
                             {% elif field.name == 'is_active' %}
-                            <div class="form-check form-switch">
+                            <div style="display: flex; align-items: center; gap: 8px;">
                                 <input type="checkbox"
                                        name="{{ field.name }}"
                                        id="{{ field.id_for_label }}"
-                                       class="form-check-input {% if field.errors %}is-invalid{% endif %}"
+                                       style="width: 16px; height: 16px; {% if field.errors %}border-color: var(--error-color);{% endif %}"
                                        {% if field.value %}checked{% endif %}>
-                                <label class="form-check-label" for="{{ field.id_for_label }}">
+                                <label for="{{ field.id_for_label }}" style="margin: 0; font-weight: normal;">
                                     激活状态
                                 </label>
                             </div>
@@ -106,17 +101,17 @@
                                    name="{{ field.name }}"
                                    id="{{ field.id_for_label }}"
                                    value="{{ field.value|default:'' }}"
-                                   class="form-control {% if field.errors %}is-invalid{% endif %}"
+                                   style="width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; {% if field.errors %}border-color: var(--error-color);{% endif %}"
                                    {% if field.field.required %}required{% endif %}
                                    placeholder="请输入{{ field.label }}">
                             {% endif %}
 
                             {% if field.help_text %}
-                            <div class="form-text">{{ field.help_text }}</div>
+                            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">{{ field.help_text }}</div>
                             {% endif %}
 
                             {% if field.errors %}
-                            <div class="invalid-feedback d-block">
+                            <div style="font-size: 12px; color: var(--error-color); margin-top: 4px;">
                                 {% for error in field.errors %}
                                 {{ error }}
                                 {% endfor %}
@@ -125,14 +120,14 @@
                         </div>
                         {% endfor %}
 
-                        <hr>
+                        <hr style="border: none; border-top: 1px solid #f0f0f0; margin: 24px 0;">
 
-                        <div class="d-flex justify-content-between">
-                            <button type="submit" class="btn {% if action == 'update' %}btn-warning{% else %}btn-primary{% endif %}">
+                        <div style="display: flex; justify-content: space-between; gap: 12px;">
+                            <button type="submit" class="btn {% if action == 'update' %}btn-primary{% else %}btn-primary{% endif %}">
                                 <i class="fas {% if action == 'update' %}fa-save{% else %}fa-user-plus{% endif %}"></i>
                                 {% if action == 'update' %}保存修改{% else %}添加成员{% endif %}
                             </button>
-                            <a href="{% url 'TeamManagement:team-member-list' team.pk %}" class="btn btn-secondary">
+                            <a href="{% url 'TeamManagement:team-member-list' team.pk %}" class="btn">
                                 <i class="fas fa-times"></i> 取消
                             </a>
                         </div>
@@ -140,10 +135,13 @@
                 </div>
             </div>
 
-            <div class="card mt-3">
+            <div class="data-card" style="margin-top: 16px;">
                 <div class="card-body">
-                    <h6><i class="fas fa-info-circle text-info"></i> 提示</h6>
-                    <ul class="mb-0">
+                    <div class="card-title">
+                        <i class="fas fa-info-circle text-primary"></i>
+                        提示
+                    </div>
+                    <ul style="margin: 12px 0 0 0; padding-left: 20px; color: var(--text-secondary);">
                         {% if action == 'update' %}
                         <li>可以修改成员的角色和激活状态</li>
                         <li>编辑时不能更改成员用户</li>
@@ -156,7 +154,5 @@
                     </ul>
                 </div>
             </div>
-        </div>
-    </div>
 </div>
 {% endblock %}

@@ -1,0 +1,687 @@
+{% extends 'projectmanagement/base.html' %}
+{% load static %}
+
+{% block title %}任务时间线 — {{ project.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .visualization-header {
+        background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%);
+        color: white;
+        padding: 2rem;
+        margin: -2rem -2rem 0;
+        border-radius: 8px;
+        text-align: center;
+    }
+
+    .timeline-overview {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin: 2rem 0;
+    }
+
+    .overview-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        text-align: center;
+        border-right: 4px solid;
+        transition: transform 0.2s;
+    }
+
+    .overview-card:hover {
+        transform: translateY(-2px);
+    }
+
+    .overview-card.total { border-right-color: #20c997; }
+    .overview-card.completed { border-right-color: #28a745; }
+    .overview-card.months { border-right-color: #007bff; }
+    .overview-card.rate { border-right-color: #ffc107; }
+
+    .chart-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+        margin: 2rem 0;
+    }
+
+    @media (max-width: 992px) {
+        .chart-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .chart-container {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+    }
+
+    .chart-wrapper {
+        position: relative;
+        height: 400px;
+        width: 100%;
+    }
+
+    .timeline-table-container {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        margin: 2rem 0;
+    }
+
+    .timeline-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .timeline-table th {
+        background: linear-gradient(135deg, #20c997, #17a2b8);
+        color: white;
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        border: none;
+    }
+
+    .timeline-table th:first-child {
+        border-top-left-radius: 8px;
+    }
+
+    .timeline-table th:last-child {
+        border-top-right-radius: 8px;
+    }
+
+    .timeline-table td {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .timeline-table tr:hover {
+        background-color: #f8f9fa;
+    }
+
+    .timeline-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .task-title {
+        font-weight: 600;
+        color: #495057;
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .task-assignee {
+        font-size: 0.875rem;
+        color: #6c757d;
+    }
+
+    .task-hours {
+        font-weight: 500;
+        color: #20c997;
+    }
+
+    .status-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    .status-not_started {
+        background: #e9ecef;
+        color: #495057;
+    }
+
+    .status-in_progress {
+        background: #cce5ff;
+        color: #004085;
+    }
+
+    .status-completed {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .status-suspended {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .metric-value {
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: #333;
+        margin: 0.5rem 0;
+    }
+
+    .metric-label {
+        font-size: 1rem;
+        color: #666;
+        margin-bottom: 1rem;
+    }
+
+    .metric-detail {
+        font-size: 0.9rem;
+        color: #888;
+    }
+
+    .navigation-links {
+        display: flex;
+        gap: 1rem;
+        margin: 2rem 0;
+        flex-wrap: wrap;
+    }
+
+    .nav-link {
+        background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%);
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 6px;
+        text-decoration: none;
+        transition: transform 0.2s;
+    }
+
+    .nav-link:hover {
+        transform: translateY(-2px);
+        color: white;
+        text-decoration: none;
+    }
+
+    .gantt-container {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        margin: 2rem 0;
+        overflow-x: auto;
+    }
+
+    .gantt-chart {
+        min-height: 500px;
+        position: relative;
+    }
+</style>
+{% endblock %}
+
+{% block project_content %}
+<div class="container-fluid">
+    <div class="visualization-header">
+        <h1>{{ project.title }} — 任务时间线</h1>
+        <p class="mb-0">{{ project.project_number }} | 任务进度时间分布</p>
+    </div>
+
+    <!-- 导航链接 -->
+    <div class="navigation-links">
+        <a href="{% url 'projectmanagement:project_dashboard' project.project_number %}" class="nav-link">
+            📊 仪表板
+        </a>
+        <a href="{% url 'projectmanagement:project_progress_chart' project.project_number %}" class="nav-link">
+            📈 项目进度
+        </a>
+        <a href="{% url 'projectmanagement:project_burndown_chart' project.project_number %}" class="nav-link">
+            📉 燃尽图
+        </a>
+        <a href="{% url 'projectmanagement:team_workload_chart' project.project_number %}" class="nav-link">
+            👥 团队负载
+        </a>
+        <a href="{% url 'projectmanagement:project_info' project.project_number %}" class="nav-link">
+            🔙 返回项目
+        </a>
+    </div>
+
+    <!-- 时间线概览 -->
+    <div class="timeline-overview">
+        <div class="overview-card total">
+            <h3>📋 总任务数</h3>
+            <div class="metric-value">{{ total_tasks }}</div>
+            <div class="metric-label">项目任务</div>
+            <div class="metric-detail">包含所有状态的任务</div>
+        </div>
+
+        <div class="overview-card completed">
+            <h3>✅ 已完成</h3>
+            <div class="metric-value">{{ completed_tasks }}</div>
+            <div class="metric-label">完成数量</div>
+            <div class="metric-detail">完成率: {% if total_tasks > 0 %}{{ completed_tasks|div:total_tasks|mul:100|floatformat:1 }}{% else %}0{% endif %}%</div>
+        </div>
+
+        <div class="overview-card months">
+            <h3>📅 活跃月份</h3>
+            <div class="metric-value">{{ monthly_completion|length }}</div>
+            <div class="metric-label">工作月份</div>
+            <div class="metric-detail">有任务完成的月份数</div>
+        </div>
+
+        <div class="overview-card rate">
+            <h3>📊 完成速率</h3>
+            <div class="metric-value">{% if monthly_completion|length > 0 %}{{ completed_tasks|div:monthly_completion|length|floatformat:1 }}{% else %}0{% endif %}</div>
+            <div class="metric-label">任务/月</div>
+            <div class="metric-detail">平均每月完成任务数</div>
+        </div>
+    </div>
+
+    <!-- 图表网格 -->
+    <div class="chart-grid">
+        <!-- 月度任务完成趋势 -->
+        <div class="chart-container">
+            <h3 class="mb-4">📈 月度任务完成趋势</h3>
+            <div class="chart-wrapper">
+                <canvas id="monthlyTrendChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 任务状态时间分布 -->
+        <div class="chart-container">
+            <h3 class="mb-4">📊 任务状态时间分布</h3>
+            <div class="chart-wrapper">
+                <canvas id="statusTimeChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 任务工时分布 -->
+        <div class="chart-container">
+            <h3 class="mb-4">⏱️ 任务工时分布</h3>
+            <div class="chart-wrapper">
+                <canvas id="hoursDistributionChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 任务完成热力图 -->
+        <div class="chart-container">
+            <h3 class="mb-4">🔥 任务完成热力图</h3>
+            <div class="chart-wrapper">
+                <canvas id="completionHeatmapChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- 甘特图 -->
+    <div class="gantt-container">
+        <h3 class="mb-4">📅 任务甘特图</h3>
+        <div class="gantt-chart">
+            <canvas id="ganttChart"></canvas>
+        </div>
+    </div>
+
+    <!-- 任务详细列表 -->
+    <div class="timeline-table-container">
+        <h3 class="mb-4">📋 任务详细时间线</h3>
+        <div class="table-responsive">
+            <table class="timeline-table">
+                <thead>
+                    <tr>
+                        <th>任务名称</th>
+                        <th>负责人</th>
+                        <th>状态</th>
+                        <th>开始日期</th>
+                        <th>结束日期</th>
+                        <th>预计工时</th>
+                        <th>持续天数</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for task in timeline_data %}
+                    <tr>
+                        <td>
+                            <div class="task-title" title="{{ task.title }}">{{ task.title }}</div>
+                        </td>
+                        <td>
+                            <div class="task-assignee">{{ task.assigned_to }}</div>
+                        </td>
+                        <td>
+                            <span class="status-badge status-{{ task.status|lower }}">
+                                {{ task.status }}
+                            </span>
+                        </td>
+                        <td>
+                            {{ task.start_date }}
+                        </td>
+                        <td>
+                            {{ task.end_date|default:"-" }}
+                        </td>
+                        <td>
+                            <span class="task-hours">{{ task.estimated_hours }}h</span>
+                        </td>
+                        <td>
+                            {% if task.end_date and task.end_date != "-" %}
+                                {% with start=task.start_date|date:'Y-m-d' end=task.end_date|date:'Y-m-d' %}
+                                    {{ end|timeuntil:start }} 天
+                                {% endwith %}
+                            {% else %}
+                                进行中
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">
+                            暂无任务数据
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 设置Chart.js默认字体
+    Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+
+    const timelineData = {{ timeline_data|safe }};
+    const monthlyCompletion = {{ monthly_completion|safe }};
+
+    // 月度任务完成趋势图
+    const monthlyTrendCtx = document.getElementById('monthlyTrendChart').getContext('2d');
+    const months = Object.keys(monthlyCompletion);
+    const monthlyCounts = Object.values(monthlyCompletion);
+
+    new Chart(monthlyTrendCtx, {
+        type: 'line',
+        data: {
+            labels: months,
+            datasets: [{
+                label: '完成任务数',
+                data: monthlyCounts,
+                borderColor: 'rgba(32, 201, 151, 1)',
+                backgroundColor: 'rgba(32, 201, 151, 0.2)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4,
+                pointBackgroundColor: 'rgba(32, 201, 151, 1)',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 6,
+                pointHoverRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: '完成任务数'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: '月份'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+
+    // 任务状态时间分布图
+    const statusTimeCtx = document.getElementById('statusTimeChart').getContext('2d');
+    const statusCounts = {};
+    const statusColors = {
+        '未开始': 'rgba(108, 117, 125, 0.8)',
+        '进行中': 'rgba(0, 123, 255, 0.8)',
+        '已完成': 'rgba(40, 167, 69, 0.8)',
+        '已暂停': 'rgba(255, 193, 7, 0.8)'
+    };
+
+    timelineData.forEach(task => {
+        statusCounts[task.status] = (statusCounts[task.status] || 0) + 1;
+    });
+
+    new Chart(statusTimeCtx, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(statusCounts),
+            datasets: [{
+                data: Object.values(statusCounts),
+                backgroundColor: Object.keys(statusCounts).map(status => statusColors[status] || 'rgba(153, 102, 255, 0.8)'),
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 15,
+                        usePointStyle: true
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.parsed;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((value / total) * 100).toFixed(1);
+                            return `${label}: ${value} 个任务 (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // 任务工时分布图
+    const hoursDistCtx = document.getElementById('hoursDistributionChart').getContext('2d');
+    const hoursRanges = {
+        '0-10h': 0,
+        '11-20h': 0,
+        '21-30h': 0,
+        '31-40h': 0,
+        '40h+': 0
+    };
+
+    timelineData.forEach(task => {
+        const hours = task.estimated_hours;
+        if (hours <= 10) hoursRanges['0-10h']++;
+        else if (hours <= 20) hoursRanges['11-20h']++;
+        else if (hours <= 30) hoursRanges['21-30h']++;
+        else if (hours <= 40) hoursRanges['31-40h']++;
+        else hoursRanges['40h+']++;
+    });
+
+    new Chart(hoursDistCtx, {
+        type: 'bar',
+        data: {
+            labels: Object.keys(hoursRanges),
+            datasets: [{
+                label: '任务数量',
+                data: Object.values(hoursRanges),
+                backgroundColor: 'rgba(23, 162, 184, 0.8)',
+                borderColor: 'rgba(23, 162, 184, 1)',
+                borderWidth: 2,
+                borderRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: '任务数量'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: '工时范围'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+
+    // 任务完成热力图 (模拟数据)
+    const heatmapCtx = document.getElementById('completionHeatmapChart').getContext('2d');
+    const weekDays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+    const heatmapData = [];
+
+    for (let i = 0; i < 12; i++) {
+        for (let j = 0; j < 7; j++) {
+            heatmapData.push(Math.floor(Math.random() * 5)); // 模拟热力值
+        }
+    }
+
+    new Chart(heatmapCtx, {
+        type: 'bubble',
+        data: {
+            datasets: [{
+                label: '任务完成强度',
+                data: heatmapData.map((value, index) => ({
+                    x: index % 7,
+                    y: Math.floor(index / 7),
+                    r: value + 2
+                })),
+                backgroundColor: 'rgba(32, 201, 151, 0.6)',
+                borderColor: 'rgba(32, 201, 151, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    type: 'category',
+                    labels: weekDays,
+                    title: {
+                        display: true,
+                        text: '星期'
+                    }
+                },
+                y: {
+                    type: 'category',
+                    labels: Array.from({length: 12}, (_, i) => `第${i + 1}周`),
+                    title: {
+                        display: true,
+                        text: '周数'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const week = context.parsed.y;
+                            const day = context.parsed.x;
+                            return `第${week + 1}周 ${weekDays[day]}: 任务完成强度`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // 甘特图 (简化版本)
+    const ganttCtx = document.getElementById('ganttChart').getContext('2d');
+    const ganttData = timelineData.filter(task => task.start_date && task.end_date && task.end_date !== "-");
+
+    new Chart(ganttCtx, {
+        type: 'bar',
+        data: {
+            labels: ganttData.map(task => task.title.substring(0, 20)),
+            datasets: [{
+                label: '任务持续时间',
+                data: ganttData.map(task => {
+                    const start = new Date(task.start_date);
+                    const end = new Date(task.end_date);
+                    return (end - start) / (1000 * 60 * 60 * 24); // 转换为天数
+                }),
+                backgroundColor: ganttData.map((task, index) => {
+                    const colors = [
+                        'rgba(32, 201, 151, 0.8)',
+                        'rgba(0, 123, 255, 0.8)',
+                        'rgba(255, 193, 7, 0.8)',
+                        'rgba(40, 167, 69, 0.8)',
+                        'rgba(220, 53, 69, 0.8)'
+                    ];
+                    return colors[index % colors.length];
+                }),
+                borderColor: ganttData.map((task, index) => {
+                    const colors = [
+                        'rgba(32, 201, 151, 1)',
+                        'rgba(0, 123, 255, 1)',
+                        'rgba(255, 193, 7, 1)',
+                        'rgba(40, 167, 69, 1)',
+                        'rgba(220, 53, 69, 1)'
+                    ];
+                    return colors[index % colors.length];
+                }),
+                borderWidth: 2,
+                borderRadius: 4
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: '持续时间 (天)'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const task = ganttData[context.dataIndex];
+                            return [
+                                `任务: ${task.title}`,
+                                `开始: ${task.start_date}`,
+                                `结束: ${task.end_date}`,
+                                `持续: ${context.parsed.x.toFixed(1)} 天`,
+                                `工时: ${task.estimated_hours}h`
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

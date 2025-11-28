@@ -1,140 +1,205 @@
-{% extends 'base.html' %}
+{% extends 'webapp/unified_base.html' %}
 
-{% block title %}项目列表{% endblock %}
+{% block title %}项目列表 - 项目管理系统{% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1><i class="fas fa-project-diagram"></i> 项目列表</h1>
-            <p class="text-muted">查看和管理所有项目</p>
-        </div>
+<div class="content-header">
+    <h1>
+        <i class="fas fa-project-diagram"></i>
+        项目列表
+    </h1>
+    <div>
         <a href="{% url 'projectmanagement:project_create' %}" class="btn btn-primary">
-            <i class="fas fa-plus-circle"></i> 新建项目
+            <i class="fas fa-plus"></i>
+            新建项目
         </a>
     </div>
+</div>
 
+<div class="content-body">
     {% if messages %}
-    <div class="alert-container">
+    <div style="margin-bottom: 16px;">
         {% for message in messages %}
-        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        <div style="padding: 12px 16px; border-radius: 6px; margin-bottom: 8px; background: {% if message.tags == 'error' %}#fff1f0; border: 1px solid #ffccc7; color: #f5222d{% elif message.tags == 'warning' %}#fff7e6; border: 1px solid #ffd591; color: #faad14{% elif message.tags == 'success' %}#f6ffed; border: 1px solid #b7eb8f; color: #52c41a{% else %}#e6f7ff; border: 1px solid #91d5ff; color: #1890ff{% endif %}; display: flex; align-items: center; justify-content: space-between;">
+            <span>{{ message }}</span>
+            <button onclick="this.parentElement.style.display='none'" style="background: none; border: none; font-size: 16px; cursor: pointer;">×</button>
         </div>
         {% endfor %}
     </div>
     {% endif %}
 
-    <div class="card">
+    <!-- 统计概览 -->
+    <div class="stats-grid">
+        <div class="stat-card primary">
+            <div class="stat-header">
+                <div class="stat-title">项目总数</div>
+                <i class="fas fa-project-diagram stat-icon"></i>
+            </div>
+            <div class="stat-value">{{ projects|length }}</div>
+            <div class="stat-description">所有项目数量</div>
+        </div>
+
+        <div class="stat-card success">
+            <div class="stat-header">
+                <div class="stat-title">进行中</div>
+                <i class="fas fa-play-circle stat-icon"></i>
+            </div>
+            <div class="stat-value">0</div>
+            <div class="stat-description">正在执行的项目</div>
+        </div>
+
+        <div class="stat-card warning">
+            <div class="stat-header">
+                <div class="stat-title">已完成</div>
+                <i class="fas fa-check-circle stat-icon"></i>
+            </div>
+            <div class="stat-value">0</div>
+            <div class="stat-description">已交付的项目</div>
+        </div>
+
+        <div class="stat-card info">
+            <div class="stat-header">
+                <div class="stat-title">活跃度</div>
+                <i class="fas fa-chart-line stat-icon"></i>
+            </div>
+            <div class="stat-value">{{ projects|length }}</div>
+            <div class="stat-description">项目活跃度</div>
+        </div>
+    </div>
+
+    <!-- 项目列表 -->
+    <div class="data-card">
         <div class="card-header">
-            <h5 class="mb-0">
-                <i class="fas fa-list"></i> 所有项目 ({{ projects|length }})
-            </h5>
+            <h3 class="card-title">
+                <i class="fas fa-list"></i>
+                所有项目
+            </h3>
+            <span class="text-secondary">共 {{ projects|length }} 个项目</span>
         </div>
         <div class="card-body">
             {% if projects %}
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead class="table-light">
-                        <tr>
-                            <th>项目编号</th>
-                            <th>项目名称</th>
-                            <th>状态</th>
-                            <th>进度</th>
-                            <th>实际开始时间</th>
-                            <th>操作</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for project in projects %}
-                        <tr>
-                            <td><code>{{ project.project_number }}</code></td>
-                            <td><strong>{{ project.title }}</strong></td>
-                            <td>
-                                {% if project.status == 'in_progress' %}
-                                <span class="badge bg-primary">{{ project.get_status_display }}</span>
-                                {% elif project.status == 'completed' %}
-                                <span class="badge bg-success">{{ project.get_status_display }}</span>
-                                {% elif project.status == 'suspended' %}
-                                <span class="badge bg-warning text-dark">{{ project.get_status_display }}</span>
-                                {% elif project.status == 'cancelled' %}
-                                <span class="badge bg-danger">{{ project.get_status_display }}</span>
-                                {% else %}
-                                <span class="badge bg-secondary">{{ project.get_status_display }}</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <div class="d-flex align-items-center gap-2">
-                                    <div class="progress flex-grow-1" style="min-width: 100px;">
-                                        <div class="progress-bar" role="progressbar"
-                                             style="width: {{ project.get_project_progress }}%"
-                                             aria-valuenow="{{ project.get_project_progress }}"
-                                             aria-valuemin="0"
-                                             aria-valuemax="100">
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>项目编号</th>
+                                <th>项目名称</th>
+                                <th>状态</th>
+                                <th>进度</th>
+                                <th>实际开始时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for project in projects %}
+                            <tr>
+                                <td><code>{{ project.project_number }}</code></td>
+                                <td>
+                                    <a href="{% url 'projectmanagement:project_info' project.project_number %}" class="text-primary text-decoration-none">
+                                        <strong>{{ project.title }}</strong>
+                                    </a>
+                                </td>
+                                <td>
+                                    <span class="status-badge {{ project.status }}">
+                                        {{ project.get_status_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <div style="flex: 1; height: 4px; background: #f0f0f0; border-radius: 2px; overflow: hidden; min-width: 60px;">
+                                            <div style="width: {{ project.get_project_progress|floatformat:0 }}%; height: 100%; background: var(--success-color);"></div>
                                         </div>
+                                        <span style="font-size: 12px; color: var(--text-secondary);">{{ project.get_project_progress|floatformat:0 }}%</span>
                                     </div>
-                                    <div class="text-nowrap">
-                                        {{ project.get_project_progress|floatformat:1 }}%
+                                </td>
+                                <td>
+                                    {% if project.actual_start_date %}
+                                    <span style="font-size: 14px; color: var(--text-secondary);">
+                                        {{ project.actual_start_date|date:"Y-m-d" }}
+                                    </span>
+                                    {% else %}
+                                    <span style="font-size: 14px; color: var(--text-secondary);">未开始</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div style="display: flex; gap: 4px;">
+                                        <a href="{% url 'projectmanagement:project_info' project.project_number %}"
+                                           class="btn btn-sm"
+                                           title="查看详情">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        {% if project.status == 'in_progress' %}
+                                        <a href="{% url 'projectmanagement:project_pause' project.project_number %}"
+                                           class="btn btn-sm"
+                                           title="暂停项目"
+                                           onclick="return confirmAction('确定要暂停该项目吗？')">
+                                            <i class="fas fa-pause"></i>
+                                        </a>
+                                        {% endif %}
+                                        {% if project.status == 'suspended' %}
+                                        <a href="{% url 'projectmanagement:project_resume' project.project_number %}"
+                                           class="btn btn-sm"
+                                           title="继续项目"
+                                           onclick="return confirmAction('确定要继续该项目吗？')">
+                                            <i class="fas fa-play"></i>
+                                        </a>
+                                        {% endif %}
+                                        {% if project.status != 'cancelled' and project.status != 'completed' %}
+                                        <a href="{% url 'projectmanagement:project_cancel' project.project_number %}"
+                                           class="btn btn-sm"
+                                           title="取消项目"
+                                           onclick="return confirmAction('确定要取消该项目吗？')">
+                                            <i class="fas fa-times"></i>
+                                        </a>
+                                        {% endif %}
                                     </div>
-                                </div>
-                            </td>
-                            <td>
-                                {% if project.actual_start_date %}
-                                <small class="text-muted">
-                                    <i class="far fa-calendar-alt"></i> {{ project.actual_start_date|date:"Y-m-d" }}
-                                </small>
-                                {% else %}
-                                <small class="text-muted">未开始</small>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <div class="btn-group btn-group-sm" role="group">
-                                    <a href="{% url 'projectmanagement:project_info' project.project_number %}"
-                                       class="btn btn-outline-primary"
-                                       title="查看详情">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                    {% if project.status == 'in_progress' %}
-                                    <a href="{% url 'projectmanagement:project_pause' project.project_number %}"
-                                       class="btn btn-outline-warning"
-                                       title="暂停项目"
-                                       onclick="return confirm('确定要暂停该项目吗？')">
-                                        <i class="fas fa-pause"></i>
-                                    </a>
-                                    {% endif %}
-                                    {% if project.status == 'suspended' %}
-                                    <a href="{% url 'projectmanagement:project_resume' project.project_number %}"
-                                       class="btn btn-outline-success"
-                                       title="继续项目"
-                                       onclick="return confirm('确定要继续该项目吗？')">
-                                        <i class="fas fa-play"></i>
-                                    </a>
-                                    {% endif %}
-                                    {% if project.status != 'cancelled' and project.status != 'completed' %}
-                                    <a href="{% url 'projectmanagement:project_cancel' project.project_number %}"
-                                       class="btn btn-outline-danger"
-                                       title="取消项目"
-                                       onclick="return confirm('确定要取消该项目吗？')">
-                                        <i class="fas fa-times"></i>
-                                    </a>
-                                    {% endif %}
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             {% else %}
-            <div class="text-center py-5">
-                <i class="fas fa-project-diagram fa-4x text-muted mb-3"></i>
-                <p class="text-muted">暂无项目</p>
-                <a href="{% url 'projectmanagement:project_create' %}" class="btn btn-primary">
-                    <i class="fas fa-plus-circle"></i> 创建第一个项目
-                </a>
-            </div>
+                <div class="empty-state">
+                    <i class="fas fa-project-diagram"></i>
+                    <h3>暂无项目</h3>
+                    <p>创建第一个项目开始使用项目管理系统</p>
+                    <a href="{% url 'projectmanagement:project_create' %}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i>
+                        创建第一个项目
+                    </a>
+                </div>
             {% endif %}
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // 页面加载动画
+    document.addEventListener('DOMContentLoaded', function() {
+        const statCards = document.querySelectorAll('.stat-card');
+        statCards.forEach((card, index) => {
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(20px)';
+            setTimeout(() => {
+                card.style.transition = 'all 0.5s ease';
+                card.style.opacity = '1';
+                card.style.transform = 'translateY(0)';
+            }, index * 100);
+        });
+
+        // 项目行悬停效果
+        const tableRows = document.querySelectorAll('.data-table tbody tr');
+        tableRows.forEach(row => {
+            row.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateX(4px)';
+            });
+            row.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateX(0)';
+            });
+        });
+    });
+</script>
 {% endblock %}

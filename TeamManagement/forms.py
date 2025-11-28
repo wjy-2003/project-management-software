@@ -1,7 +1,5 @@
 from django import forms
 from django.contrib.auth import get_user_model
-from django.core.exceptions import ValidationError
-from django.utils.translation import gettext_lazy as _
 
 from .models import Role, Team, TeamMember
 
@@ -47,4 +45,6 @@ class TeamMemberForm(forms.ModelForm):
         # Ensure the 'role' queryset is not empty
         if not Role.objects.exists():
             self.fields["role"].queryset = Role.objects.none()
-            self.fields["role"].help_text = "No roles available. Please create roles in the admin panel."
+            self.fields["role"].help_text = (
+                "No roles available. Please create roles in the admin panel."
+            )

@@ -73,4 +73,30 @@ urlpatterns = [
         views.project_members_manage,
         name="members_manage",
     ),
+    # 可视化相关的URL
+    path(
+        "<str:project_number>/visualization/dashboard/",
+        views.project_dashboard,
+        name="project_dashboard",
+    ),
+    path(
+        "<str:project_number>/visualization/progress/",
+        views.project_progress_chart,
+        name="project_progress_chart",
+    ),
+    path(
+        "<str:project_number>/visualization/burndown/",
+        views.project_burndown_chart,
+        name="project_burndown_chart",
+    ),
+    path(
+        "<str:project_number>/visualization/team/",
+        views.team_workload_chart,
+        name="team_workload_chart",
+    ),
+    path(
+        "<str:project_number>/visualization/timeline/",
+        views.task_timeline_chart,
+        name="task_timeline_chart",
+    ),
 ]
