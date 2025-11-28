@@ -20,10 +20,11 @@ from django.conf.urls.static import static
 from django.urls import include, path
 from django.views.generic import RedirectView
 
+from . import views
 from .admin import custom_admin_site
 
 urlpatterns = [
-    path("", RedirectView.as_view(url="/login/", permanent=False)),
+    path("", views.DashboardView.as_view(), name="dashboard"),
     # 使用自定义的 AdminSite 处理登录与后台入口
     path("login/", custom_admin_site.urls),
     path("admin/", RedirectView.as_view(url="/projects/", permanent=False)),
@@ -31,6 +32,32 @@ urlpatterns = [
     path("git/", include("GitIntegration.urls")),
     path("projects/", include("ProjectManagement.urls")),
     path("teams/", include("TeamManagement.urls")),
+    # Webapp specific routes
+    path("dashboard/", views.DashboardView.as_view(), name="dashboard_alt"),
+    path("project-list/", views.ProjectListView.as_view(), name="project_list"),
+    path(
+        "project-detail/<int:pk>/",
+        views.ProjectDetailView.as_view(),
+        name="project_detail",
+    ),
+    path(
+        "team-management/", views.TeamManagementView.as_view(), name="team_management"
+    ),
+    path(
+        "git-integration/", views.GitIntegrationView.as_view(), name="git_integration"
+    ),
+    path(
+        "realtime-collab/", views.RealtimeCollabView.as_view(), name="realtime_collab"
+    ),
+    path("visualization/", views.VisualizationView.as_view(), name="visualization"),
+    path("requirements/", views.RequirementListView.as_view(), name="requirement_list"),
+    # Redirects
+    path(
+        "project-management/",
+        RedirectView.as_view(url="/project-list/", permanent=False),
+    ),
+    path("project/", RedirectView.as_view(url="/project-list/", permanent=False)),
+    path("team/", RedirectView.as_view(url="/team-management/", permanent=False)),
 ]
 
 if settings.DEBUG:

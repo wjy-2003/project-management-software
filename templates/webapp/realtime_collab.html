@@ -1,0 +1,464 @@
+{% extends "base.html" %}
+
+{% block title %}实时协作 - 项目管理系统{% endblock %}
+
+{% block extra_css %}
+<style>
+    .collab-container {
+        height: calc(100vh - 120px);
+        min-height: 600px;
+    }
+    .collab-iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+        border-radius: 8px;
+        box-shadow: 0 0 20px rgba(0,0,0,0.1);
+    }
+    .connect-status {
+        position: fixed;
+        top: 70px;
+        right: 20px;
+        z-index: 1000;
+    }
+    .status-indicator {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-right: 8px;
+        animation: pulse 2s infinite;
+    }
+    .status-connected {
+        background-color: #28a745;
+    }
+    .status-disconnected {
+        background-color: #dc3545;
+    }
+    .status-connecting {
+        background-color: #ffc107;
+    }
+    @keyframes pulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
+        }
+        70% {
+            box-shadow: 0 0 0 10px rgba(40, 167, 69, 0);
+        }
+        100% {
+            box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <!-- 连接状态指示器 -->
+    <div class="connect-status">
+        <div class="card shadow-sm">
+            <div class="card-body py-2">
+                <div class="d-flex align-items-center">
+                    <span class="status-indicator status-connecting" id="statusIndicator"></span>
+                    <span id="statusText">正在连接协作服务器...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 协作工具栏 -->
+    <div class="bg-white border-bottom px-4 py-2">
+        <div class="row align-items-center">
+            <div class="col">
+                <h5 class="mb-0">
+                    <i class="fas fa-users text-primary"></i> 实时协作编辑器
+                </h5>
+            </div>
+            <div class="col-auto">
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="createNewSession()">
+                        <i class="fas fa-plus"></i> 新建会话
+                    </button>
+                    <button type="button" class="btn btn-outline-info btn-sm" onclick="joinSession()">
+                        <i class="fas fa-sign-in-alt"></i> 加入会话
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="refreshSessions()">
+                        <i class="fas fa-sync-alt"></i> 刷新
+                    </button>
+                </div>
+            </div>
+            <div class="col-auto">
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" id="sessionDropdown" data-bs-toggle="dropdown">
+                        <i class="fas fa-list"></i> 活跃会话
+                        <span class="badge bg-primary ms-1" id="activeSessionCount">0</span>
+                    </button>
+                    <ul class="dropdown-menu" id="sessionList" style="max-height: 300px; overflow-y: auto;">
+                        <li><a class="dropdown-item text-muted" href="#">暂无活跃会话</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 协作主区域 -->
+    <div class="collab-container p-3">
+        <iframe
+            src="http://localhost:8082/"
+            class="collab-iframe"
+            id="collabFrame"
+            onload="onIframeLoad()"
+            onerror="onIframeError()">
+        </iframe>
+    </div>
+
+    <!-- 会话信息浮动面板 -->
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1000;">
+        <div class="card shadow" id="sessionInfo" style="display: none; min-width: 250px;">
+            <div class="card-header bg-primary text-white py-2">
+                <h6 class="mb-0">
+                    <i class="fas fa-info-circle"></i> 当前会话
+                </h6>
+            </div>
+            <div class="card-body py-2">
+                <div class="small">
+                    <div class="mb-2">
+                        <strong>会话ID:</strong>
+                        <span id="currentSessionId">-</span>
+                    </div>
+                    <div class="mb-2">
+                        <strong>在线成员:</strong>
+                        <span id="onlineMembers">0</span>
+                    </div>
+                    <div class="mb-2">
+                        <strong>您的权限:</strong>
+                        <span id="userPermission" class="badge bg-info">查看者</span>
+                    </div>
+                </div>
+                <hr class="my-2">
+                <button class="btn btn-sm btn-outline-danger w-100" onclick="leaveCurrentSession()">
+                    <i class="fas fa-sign-out-alt"></i> 退出会话
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 加入会话模态框 -->
+<div class="modal fade" id="joinSessionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">加入协作会话</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="joinSessionForm">
+                    <div class="mb-3">
+                        <label for="sessionId" class="form-label">会话ID</label>
+                        <input type="text" class="form-control" id="sessionId" placeholder="输入会话ID">
+                        <div class="form-text">会话创建者会提供给您</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="joinRole" class="form-label">您的角色</label>
+                        <select class="form-select" id="joinRole">
+                            <option value="viewer">查看者（只读）</option>
+                            <option value="editor">编辑者（可修改）</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="joinSessionById()">加入会话</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 新建会话模态框 -->
+<div class="modal fade" id="createSessionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">新建协作会话</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createSessionForm" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="sessionFiles" class="form-label">选择文件（可选）</label>
+                        <input type="file" class="form-control" id="sessionFiles" multiple>
+                        <div class="form-text">可以上传多个文件开始协作</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="createSession()">创建会话</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 监听iframe消息
+window.addEventListener('message', function(event) {
+    // 验证消息来源
+    if (event.origin !== 'http://localhost:8082') return;
+
+    const data = event.data;
+
+    switch(data.type) {
+        case 'COLLAB_STATUS':
+            updateConnectionStatus(data.connected, data.message);
+            break;
+        case 'SESSION_JOINED':
+            updateSessionInfo(data.sessionId, data.members, data.permission);
+            break;
+        case 'SESSION_LEFT':
+            hideSessionInfo();
+            break;
+        case 'SESSIONS_UPDATED':
+            updateSessionList(data.sessions);
+            break;
+    }
+});
+
+// 更新连接状态
+function updateConnectionStatus(connected, message) {
+    const indicator = document.getElementById('statusIndicator');
+    const text = document.getElementById('statusText');
+
+    if (connected) {
+        indicator.className = 'status-indicator status-connected';
+        text.textContent = '已连接到协作服务器';
+        fetchActiveSessions();
+    } else {
+        indicator.className = 'status-indicator status-disconnected';
+        text.textContent = message || '连接已断开';
+    }
+}
+
+// iframe加载完成
+function onIframeLoad() {
+    console.log('协作编辑器已加载');
+    updateConnectionStatus(true, '协作编辑器已就绪');
+}
+
+// iframe加载错误
+function onIframeError() {
+    console.error('协作编辑器加载失败');
+    updateConnectionStatus(false, '协作编辑器加载失败，请确保端口8082可访问');
+}
+
+// 创建新会话
+function createNewSession() {
+    const modal = new bootstrap.Modal(document.getElementById('createSessionModal'));
+    modal.show();
+}
+
+function createSession() {
+    const form = document.getElementById('createSessionForm');
+    const formData = new FormData(form);
+
+    // 这里需要调用API创建会话
+    // 暂时关闭模态框
+    bootstrap.Modal.getInstance(document.getElementById('createSessionModal')).hide();
+
+    // 显示提示
+    showNotification('正在创建会话...', 'info');
+
+    // 实际实现需要调用 /api/collaboration/sessions/create/
+    fetch('/api/collaboration/sessions/create/', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('会话创建成功！', 'success');
+            // 通知iframe
+            document.getElementById('collabFrame').contentWindow.postMessage({
+                type: 'CREATE_SESSION',
+                sessionId: data.session_id
+            }, 'http://localhost:8082');
+        } else {
+            showNotification('创建失败: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('创建失败，请重试', 'error');
+    });
+}
+
+// 加入会话
+function joinSession() {
+    const modal = new bootstrap.Modal(document.getElementById('joinSessionModal'));
+    modal.show();
+}
+
+function joinSessionById() {
+    const sessionId = document.getElementById('sessionId').value;
+    const role = document.getElementById('joinRole').value;
+
+    if (!sessionId) {
+        showNotification('请输入会话ID', 'warning');
+        return;
+    }
+
+    bootstrap.Modal.getInstance(document.getElementById('joinSessionModal')).hide();
+
+    // 调用加入会话API
+    fetch(`/api/collaboration/sessions/${sessionId}/join/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ role: role })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('成功加入会话！', 'success');
+            // 通知iframe
+            document.getElementById('collabFrame').contentWindow.postMessage({
+                type: 'JOIN_SESSION',
+                sessionId: sessionId,
+                role: role
+            }, 'http://localhost:8082');
+        } else {
+            showNotification('加入失败: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('加入失败，请重试', 'error');
+    });
+}
+
+// 刷新会话列表
+function refreshSessions() {
+    fetchActiveSessions();
+}
+
+// 获取活跃会话
+function fetchActiveSessions() {
+    fetch('/api/collaboration/sessions/')
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            updateSessionList(data.sessions);
+        }
+    })
+    .catch(error => {
+        console.error('Error fetching sessions:', error);
+    });
+}
+
+// 更新会话列表
+function updateSessionList(sessions) {
+    const list = document.getElementById('sessionList');
+    const count = document.getElementById('activeSessionCount');
+
+    count.textContent = sessions.length;
+
+    if (sessions.length === 0) {
+        list.innerHTML = '<li><a class="dropdown-item text-muted" href="#">暂无活跃会话</a></li>';
+    } else {
+        list.innerHTML = sessions.map(session => `
+            <li>
+                <a class="dropdown-item" href="#" onclick="quickJoinSession('${session.session_id}')">
+                    <div class="fw-bold">${session.session_id.substring(0, 8)}...</div>
+                    <small class="text-muted">成员: ${session.member_count} | 创建于: ${new Date(session.created_at).toLocaleString()}</small>
+                </a>
+            </li>
+        `).join('');
+    }
+}
+
+// 快速加入会话
+function quickJoinSession(sessionId) {
+    document.getElementById('sessionId').value = sessionId;
+    document.getElementById('joinRole').value = 'viewer';
+    joinSessionById();
+}
+
+// 更新会话信息
+function updateSessionInfo(sessionId, members, permission) {
+    const info = document.getElementById('sessionInfo');
+    const idSpan = document.getElementById('currentSessionId');
+    const membersSpan = document.getElementById('onlineMembers');
+    const permissionSpan = document.getElementById('userPermission');
+
+    idSpan.textContent = sessionId.substring(0, 12) + '...';
+    membersSpan.textContent = members || 0;
+    permissionSpan.textContent = permission === 'editor' ? '编辑者' : '查看者';
+    permissionSpan.className = permission === 'editor' ? 'badge bg-success' : 'badge bg-info';
+
+    info.style.display = 'block';
+}
+
+// 隐藏会话信息
+function hideSessionInfo() {
+    document.getElementById('sessionInfo').style.display = 'none';
+}
+
+// 退出当前会话
+function leaveCurrentSession() {
+    // 通知iframe
+    document.getElementById('collabFrame').contentWindow.postMessage({
+        type: 'LEAVE_SESSION'
+    }, 'http://localhost:8082');
+}
+
+// 显示通知
+function showNotification(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-white bg-${type === 'error' ? 'danger' : type} border-0`;
+    toast.setAttribute('role', 'alert');
+    toast.style.position = 'fixed';
+    toast.style.top = '80px';
+    toast.style.right = '20px';
+    toast.style.zIndex = '9999';
+
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">
+                ${message}
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+
+    document.body.appendChild(toast);
+    const bsToast = new bootstrap.Toast(toast);
+    bsToast.show();
+
+    toast.addEventListener('hidden.bs.toast', () => {
+        document.body.removeChild(toast);
+    });
+}
+
+// 页面加载时初始化
+document.addEventListener('DOMContentLoaded', function() {
+    // 定期检查连接状态
+    setInterval(() => {
+        try {
+            const iframe = document.getElementById('collabFrame');
+            if (iframe.contentWindow) {
+                iframe.contentWindow.postMessage({ type: 'PING' }, 'http://localhost:8082');
+            }
+        } catch (e) {
+            updateConnectionStatus(false, '无法访问协作编辑器');
+        }
+    }, 5000);
+
+    // 初始获取会话列表
+    setTimeout(fetchActiveSessions, 1000);
+});
+</script>
+{% endblock %}

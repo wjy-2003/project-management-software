@@ -29,6 +29,21 @@ class DashboardView(TemplateView):  # LoginRequiredMixin,
         return context
 
 
+class ProjectDetailView(TemplateView):  # LoginRequiredMixin,
+    template_name = "webapp/project_detail.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # 获取项目详情
+        project_id = kwargs.get("pk")
+        if project_id:
+            try:
+                context["project"] = Project.objects.get(id=project_id)
+            except Project.DoesNotExist:
+                context["project"] = None
+        return context
+
+
 class ProjectListView(TemplateView):  # LoginRequiredMixin,
     template_name = "webapp/project_list.html"
 
